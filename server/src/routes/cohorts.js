@@ -192,6 +192,47 @@ router.get('/:code/students/:regNo', requireAdmin, wrap(async (req, res) => {
  * construction — there is no copy to fall out of date.
  */
 /**
+ * DELETE /api/cohorts/accounts/:userId — the placement cell removes an account.
+ *
+ * The student-facing delete is closed, so this is the only route to it. It is
+ * irreversible and takes every child row with it, so it demands the account's
+ * own email typed back, refuses to touch another admin, and is written to the
+ * activity log with the name of the officer who did it.
+ *
+ * The placement RECORD survives and is simply unclaimed — the cell's roster and
+ * readiness analysis are institutional data that should outlive one login.
+ */
+router.delete('/accounts/:userId', requireAdmin, wrap(async (req, res) => {
+  const target = await queryOne(
+    `SELECT id, email, name, role FROM users WHERE id = ?`, [req.params.userId]
+  );
+  if (!target) throw new HttpError(404, 'No such account.', 'not_found');
+
+  if (String(req.body?.confirm ?? '').trim().toLowerCase() !== target.email.toLowerCase())
+    throw new HttpError(422, `Type ${target.email} to confirm.`, 'confirm_required');
+
+  if (target.role === 'admin' && target.id !== req.user.id)
+    throw new HttpError(403, 'Remove the admin role before deleting a staff account.', 'forbidden');
+
+  // Unclaim first, so the roster row survives the cascade.
+  await execute(
+    `UPDATE student_records SET user_id = NULL, claimed_at = NULL WHERE user_id = ?`, [target.id]
+  );
+  await execute(`DELETE FROM users WHERE id = ?`, [target.id]);
+
+  await logActivity(req, {
+    userId: req.user.id,
+    action: ACTIONS.ACCOUNT_DELETED,
+    detail: { deleted: target.email, name: target.name, by: req.user.email },
+  });
+
+  res.json({
+    ok: true,
+    message: `${target.email} deleted. Their placement record is intact and can be claimed again.`,
+  });
+}));
+
+/**
  * Do two names plausibly belong to the same person?
  *
  * Indian names reorder and abbreviate constantly across records — "Achanta

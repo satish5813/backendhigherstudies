@@ -79,6 +79,14 @@ async function main() {
     { table: 'jobs', column: 'reviewed_at', definition: `DATETIME DEFAULT NULL`, after: 'reviewed_by' },
     { table: 'jobs', column: 'review_note', definition: `VARCHAR(500) DEFAULT NULL`, after: 'reviewed_at' },
     { table: 'jobs', column: 'ingested_at', definition: `DATETIME DEFAULT NULL`, after: 'review_note' },
+    // Set when the student has seen the placement cell's record of them and
+    // said "yes, that is me". Until then the onboarding flow leads with it.
+    {
+      table: 'users',
+      column: 'record_confirmed_at',
+      definition: `DATETIME DEFAULT NULL COMMENT 'student confirmed their imported placement record'`,
+      after: 'onboarded',
+    },
   ];
 
   for (const { table, column, definition, after } of ADDITIVE_COLUMNS) {

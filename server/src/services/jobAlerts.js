@@ -1,6 +1,7 @@
 import { execute, query, queryOne } from '../config/db.js';
 import { sendMail } from './mailer.js';
 import { jobAlertEmail } from '../templates/emails.js';
+import { env } from '../config/env.js';
 
 const parse = (v, fallback = []) => {
   if (v == null) return fallback;
@@ -127,6 +128,32 @@ export async function sendDigestFor(userId, { force = false } = {}) {
 
   const user = await queryOne(`SELECT id, email, name, status FROM users WHERE id = ?`, [userId]);
   if (!user || user.status !== 'active') return { status: 'skipped', count: 0, reason: 'inactive account' };
+
+  // Alerts are gated on the student's best ATS score.
+  //
+  // Mailing a 40 LPA opening to somebody whose resume scores 31 does them no
+  // favours: they apply, get filtered out by the scanner before a human reads
+  // it, and learn nothing. Below the floor the digest is replaced by a single
+  // nudge to fix the resume, which is the thing actually blocking them.
+  const best = await queryOne(
+    `SELECT MAX(ats_score) AS score FROM resumes WHERE user_id = ?`, [userId]
+  );
+  const atsScore = best?.score ?? null;
+
+  if (!force && (atsScore == null || atsScore < env.jobs.alertMinAts)) {
+    await execute(
+      `INSERT INTO alert_deliveries (user_id, job_ids, job_count, status, error) VALUES (?, ?, 0, 'skipped', ?)`,
+      [userId, JSON.stringify([]), atsScore == null ? 'no resume yet' : `ATS ${atsScore} below ${env.jobs.alertMinAts}`]
+    );
+    return {
+      status: 'skipped',
+      count: 0,
+      atsScore,
+      reason: atsScore == null
+        ? 'no resume to match against yet'
+        : `resume scores ${atsScore}, below the ${env.jobs.alertMinAts} needed for alerts`,
+    };
+  }
 
   const since = force ? null : alert.last_sent_at || new Date(Date.now() - 7 * 86400_000);
   const jobs = await findMatches(alert, { limit: 8, since });

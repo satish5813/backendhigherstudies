@@ -5,9 +5,13 @@ import { wrap } from '../middleware/common.js';
 import { ACTIONS, logActivity } from '../utils/activity.js';
 import { revokeAllUserSessions } from '../utils/tokens.js';
 import { claimByRegNo, readinessFor } from '../services/cohorts.js';
+import onboardingRoutes from './onboarding.js';
 
 const router = Router();
 router.use(requireAuth);
+
+// Mounted before any '/:something' route so it is not swallowed as a parameter.
+router.use('/onboarding', onboardingRoutes);
 
 const LABELS = {
   [ACTIONS.OTP_REQUESTED]: 'Verification code requested',
@@ -135,15 +139,23 @@ router.post('/sessions/revoke-all', wrap(async (req, res) => {
   res.json({ ok: true, message: 'Signed out of every device. Sign in again to continue.' });
 }));
 
-/** DELETE /api/me — hard delete; every child row cascades. */
-router.delete('/', wrap(async (req, res) => {
-  const confirm = String(req.body?.confirm || '').trim().toLowerCase();
-  const user = await queryOne(`SELECT email FROM users WHERE id = ?`, [req.user.id]);
-  if (confirm !== user.email.toLowerCase())
-    return res.status(422).json({ error: 'confirm_required', message: 'Type your email address to confirm deletion.' });
-
-  await execute(`DELETE FROM users WHERE id = ?`, [req.user.id]);
-  res.json({ ok: true, message: 'Your account and all its data have been deleted.' });
+/**
+ * DELETE /api/me — closed.
+ *
+ * Students may not delete their own account. These are institutional records:
+ * a profile is linked to a placement record, carries the cell's readiness
+ * analysis, and holds the applications a student has logged. A student who
+ * deletes in frustration the night before a drive destroys the cell's data too,
+ * and nobody can get it back.
+ *
+ * Deletion now goes through the placement cell, which can check first whether
+ * the account should instead be corrected or its record unlinked.
+ */
+router.delete('/', wrap(async (_req, res) => {
+  res.status(403).json({
+    error: 'admin_only',
+    message: 'Accounts are managed by the placement cell. Email them to have yours removed.',
+  });
 }));
 
 const safe = (s) => { try { return JSON.parse(s); } catch { return null; } };

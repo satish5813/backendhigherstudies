@@ -114,6 +114,10 @@ export const env = {
     autoIngest: bool(process.env.JOB_AUTO_INGEST, true),
     // Largest application-proof screenshot accepted, in megabytes.
     proofMaxMb: Number(process.env.JOB_PROOF_MAX_MB) || 8,
+    // Lowest ATS score that still gets a daily digest. Below this the student
+    // is told to fix the resume instead, because applying with it would just
+    // feed the scanner a rejection.
+    alertMinAts: int(process.env.JOB_ALERT_MIN_ATS, 45),
 
     // Optional sources. Each stays switched off until its credentials exist,
     // so the sweep works with no configuration at all and improves as keys

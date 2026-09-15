@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { authApi, meApi } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useToast } from '../components/ui/Toast';
-import { Badge, Field, Modal, PageLoader, Spinner } from '../components/ui';
-import { IconAlert, IconCheck, IconMail, IconShield, IconTrash } from '../components/ui/Icons';
+import { Badge, PageLoader, Spinner } from '../components/ui';
+import { IconAlert, IconCheck, IconMail, IconShield } from '../components/ui/Icons';
 
 export default function Settings() {
   const { user, signOut } = useAuth();
@@ -14,8 +14,6 @@ export default function Settings() {
   const [sessions, setSessions] = useState(null);
   const [diag, setDiag] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
 
   useEffect(() => {
     Promise.all([meApi.sessions(), authApi.diagnostics().catch(() => null)])
@@ -38,19 +36,6 @@ export default function Settings() {
     }
   };
 
-  const deleteAccount = async () => {
-    setBusy(true);
-    try {
-      await meApi.remove(confirmText.trim());
-      toast.success('Your account has been deleted.');
-      await signOut();
-      navigate('/', { replace: true });
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (!sessions) return <PageLoader label="Loading settings…" />;
 
@@ -153,50 +138,25 @@ export default function Settings() {
         </ul>
       </section>
 
-      {/* ------------------------------------------------------------ danger */}
-      <section className="rounded-2xl border border-rose-200 bg-rose-50/40 p-5 sm:p-6">
-        <h2 className="text-base font-bold tracking-tight text-rose-900">Delete account</h2>
-        <p className="mt-1 text-sm leading-relaxed text-rose-800/80">
-          Permanently removes your profile, every resume, your coding stats, alert settings and activity log.
-          This cannot be undone.
+      {/* --------------------------------------------------------- account */}
+      {/* Deletion is deliberately NOT offered here. A profile is linked to a
+          placement record, carries the cell's readiness analysis and holds the
+          applications the student logged, so a self-serve delete destroys
+          institutional data nobody can recover. The route returns 403; the
+          placement cell removes accounts. */}
+      <section className="rounded-2xl border border-ink-200 bg-ink-50/50 p-5 sm:p-6">
+        <h2 className="text-base font-bold tracking-tight text-ink-900">Closing your account</h2>
+        <p className="mt-1 text-sm leading-relaxed text-ink-600">
+          Your profile is tied to your placement record, so accounts are managed by the placement
+          cell rather than deleted from here. Email them if you need yours removed and they will
+          confirm before anything is deleted.
         </p>
-        <button onClick={() => setDeleteOpen(true)} className="btn-danger mt-4 h-10">
-          <IconTrash size={16} /> Delete my account
-        </button>
+        <p className="mt-3 text-[12.5px] leading-relaxed text-ink-500">
+          To stop appearing in the public student directory in the meantime, switch off
+          <b className="font-semibold text-ink-700"> Public profile</b> above — that takes effect
+          immediately and keeps your data.
+        </p>
       </section>
-
-      <Modal
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        size="sm"
-        title="Delete your account?"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button className="btn-secondary" onClick={() => setDeleteOpen(false)} disabled={busy}>Cancel</button>
-            <button
-              className="btn-danger"
-              onClick={deleteAccount}
-              disabled={busy || confirmText.trim().toLowerCase() !== (user?.email || '').toLowerCase()}
-            >
-              {busy && <Spinner size={15} />} Delete permanently
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm leading-relaxed text-ink-600">
-          Everything is deleted immediately and cannot be recovered. Type{' '}
-          <b className="font-semibold text-ink-900">{user?.email}</b> to confirm.
-        </p>
-        <Field className="mt-4">
-          <input
-            className="input"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder={user?.email}
-            autoComplete="off"
-          />
-        </Field>
-      </Modal>
     </div>
   );
 }

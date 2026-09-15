@@ -113,6 +113,18 @@
   html, body { background: #fff !important; }
   .no-print { display: none !important; }
 
+  /* Browsers drop background colours and images when printing, to save ink.
+     For these templates that is not a saving, it is a broken document: the
+     coloured rail disappears and the white text written on it lands on white
+     paper, so the student's name and contact details vanish from the PDF.
+     `exact` opts the resume back in. Scoped to the document so the rest of the
+     app still prints ink-cheap. */
+  .resume-page,
+  .resume-page * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Only the resume reaches the paper.
      Marking individual chrome `.no-print` is whack-a-mole — the app shell,
      the sidebar, a toast mid-flight and anything added later all leak in.

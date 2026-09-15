@@ -219,6 +219,10 @@ const TEMPLATE_STYLES = {
 
 const DEFAULT_ORDER = ['summary', 'education', 'skills', 'experience', 'projects', 'achievements', 'coding'];
 
+// Layouts whose coloured block runs to the paper edge. Each supplies its own
+// inner padding, so the page must not add any.
+const FULL_BLEED = new Set(['banner', 'photo-header', 'photo-sidebar']);
+
 export default function ResumeDocument({ data = {}, template = 'ats-classic', accent, innerRef }) {
   const base = TEMPLATE_STYLES[template] ?? TEMPLATE_STYLES['ats-classic'];
   // A per-resume accent recolours any template. Only a 6-digit hex is accepted
@@ -235,7 +239,11 @@ export default function ResumeDocument({ data = {}, template = 'ats-classic', ac
       className="resume-page shadow-lift"
       style={{
         fontFamily: style.font,
-        padding: style.layout === 'banner' ? 0 : style.dense ? '12mm 14mm' : undefined,
+        // Full-bleed layouts paint a colour block that has to reach the paper
+        // edge, and they re-add their own inner padding. Leaving the page
+        // padding on inset the colour AND made the document taller than A4 —
+        // 14mm + 297mm + 14mm — so a one-page resume printed as two.
+        padding: FULL_BLEED.has(style.layout) ? 0 : style.dense ? '12mm 14mm' : undefined,
       }}
     >
       {children}

@@ -35,6 +35,22 @@ router.get('/:slug', wrap(async (req, res) => {
     sections[name] = rows.map((r) => fromRow(name, r));
   }
 
+  // An empty profile must not be served to the public.
+  //
+  // It renders as a "?" avatar with no name and no content, which reads as a
+  // broken site rather than an unfinished profile — and it is the page the
+  // student would be sending to a recruiter. The owner still sees their own,
+  // so they can watch it fill in as they work.
+  const hasSomethingToShow = Boolean(
+    user.name && (
+      user.headline || user.about ||
+      sections.skills.length || sections.projects.length ||
+      sections.experience.length || sections.education.length
+    )
+  );
+  if (!hasSomethingToShow && !isOwner)
+    throw new HttpError(404, 'This student has not published a profile yet.', 'profile_empty');
+
   const links = await query(`SELECT platform, username, url FROM social_links WHERE user_id = ?`, [user.id]);
   const codingRows = await query(
     `SELECT platform, username, status, solved_total, easy, medium, hard, contest_rating,

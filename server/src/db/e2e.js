@@ -11,6 +11,8 @@
  * Requires MAIL_DEV_ECHO=true and NODE_ENV!=production so the OTP comes back
  * in the request-otp response; otherwise it cannot complete the login leg.
  */
+import { execute, queryOne } from '../config/db.js';
+
 const BASE = (process.env.API_BASE || 'http://localhost:4000').replace(/\/$/, '');
 const TEST_EMAIL = process.env.E2E_EMAIL || `e2e-${Date.now()}@gmail.com`;
 
@@ -445,12 +447,19 @@ async function main() {
   console.log('\nCleanup');
   {
     const me = await call('GET', '/api/auth/me');
-    const wrong = await call('DELETE', '/api/me', { confirm: 'wrong@example.com' });
-    check('deletion needs the right email → 422', wrong.status === 422, `got ${wrong.status}`);
 
-    const gone = await call('DELETE', '/api/me', { confirm: me.data.user.email });
-    check('DELETE /api/me → 200', gone.status === 200);
-    check('token no longer works', (await call('GET', '/api/auth/me')).status === 401);
+    // Self-deletion is closed: a profile carries the placement cell's readiness
+    // analysis and the student's logged applications, so one frustrated click
+    // must not destroy institutional data. The cell deletes accounts instead.
+    const refused = await call('DELETE', '/api/me', { confirm: me.data.user.email });
+    check('a student cannot delete their own account → 403', refused.status === 403, `got ${refused.status}`);
+    check('the refusal says who can', /placement cell/i.test(refused.data?.message ?? ''));
+    check('the account still works', (await call('GET', '/api/auth/me')).status === 200);
+
+    // Tidy up directly, since the route no longer offers it.
+    await execute(`DELETE FROM users WHERE email = ?`, [TEST_EMAIL.toLowerCase()]);
+    check('the test account was removed for cleanup',
+      !(await queryOne(`SELECT id FROM users WHERE email = ?`, [TEST_EMAIL.toLowerCase()])));
   }
 
   console.log(`\n${passed} passed, ${failed} failed\n`);

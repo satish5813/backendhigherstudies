@@ -210,7 +210,14 @@ export const meApi = {
   activity: (page = 1) => api.get(`/me/activity?page=${page}`),
   sessions: () => api.get('/me/sessions'),
   revokeAll: () => api.post('/me/sessions/revoke-all'),
-  remove: (confirm) => api.delete('/me', { confirm }),
+  // Students cannot delete their own account; the placement cell does it via
+  // cohortApi.deleteAccount. The endpoint returns 403 by design.
+
+  // The guided first-run flow: confirm the imported record, upload an existing
+  // resume, then fill the compulsory gaps.
+  onboarding: () => api.get('/me/onboarding'),
+  confirmRecord: (payload) => api.post('/me/onboarding/confirm', payload),
+  skipRecord: () => api.post('/me/onboarding/skip'),
 };
 
 export const aiApi = {
@@ -228,6 +235,7 @@ export const cohortApi = {
   roster: (code, params = {}) => api.get(`/cohorts/${code}/students?${new URLSearchParams(params)}`),
   facets: (code) => api.get(`/cohorts/${code}/facets`),
   analytics: (code) => api.get(`/cohorts/${code}/analytics`),
+  deleteAccount: (userId, confirm) => api.delete(`/cohorts/accounts/${userId}`, { confirm }),
   student: (code, regNo) => api.get(`/cohorts/${code}/students/${encodeURIComponent(regNo)}`),
 };
 
