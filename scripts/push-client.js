@@ -37,7 +37,7 @@ function main() {
   console.log(`\nsplitting client/ into ${tmp}`);
   try {
     sh(`git clone --quiet --no-local "${root}" "${tmp}"`);
-    sh('git filter-branch --quiet --subdirectory-filter client -- --all', tmp);
+    sh('git filter-branch -f --subdirectory-filter client -- --all', tmp);
     const commits = sh('git rev-list --count HEAD', tmp, { quiet: true }).trim();
     const head = sh('git log -1 --format=%h%x20%s', tmp, { quiet: true }).trim();
     console.log(`  ${commits} commits of client history; head: ${head}`);
