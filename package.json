@@ -15,7 +15,7 @@
     "migrate": "npm --workspace server run migrate",
     "seed": "npm --workspace server run seed",
     "start": "npm --workspace server run start",
-    "push:client": "node scripts/push-client.js"
+    "push:client": "node scripts/push-client.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
