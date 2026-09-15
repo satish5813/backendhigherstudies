@@ -249,7 +249,7 @@ export function AiReviewPanel({ resumeId, onApplied }) {
             </p>
             <ol className="space-y-2.5">
               {review.fixes.map((fix, i) => (
-                <FixCard key={i} fix={fix} onApplied={onApplied} />
+                <FixCard key={i} fix={fix} resumeId={resumeId} onApplied={onApplied} />
               ))}
             </ol>
           </div>
@@ -281,7 +281,7 @@ const TARGET_LABEL = {
  * Fixes needing the student's own numbers arrive with no `apply` object at all,
  * and correctly show as advice with nothing to click.
  */
-function FixCard({ fix, onApplied }) {
+function FixCard({ fix, resumeId, onApplied }) {
   const [state, setState] = useState('idle');   // idle | busy | done
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -293,10 +293,12 @@ function FixCard({ fix, onApplied }) {
     setState('busy');
     setError('');
     try {
-      const res = await aiApi.apply(patch);
+      // Sending the resume id makes the server re-pull the profile into it and
+      // re-score, so the response can report what the fix was actually worth.
+      const res = await aiApi.apply({ ...patch, resumeId });
       setResult(res);
       setState('done');
-      toast.success(res.message);
+      toast.success(res.ats?.delta > 0 ? `${res.message} ATS ${res.ats.before} → ${res.ats.after}.` : res.message);
       onApplied?.(res);
     } catch (err) {
       setError(err.message);
@@ -344,12 +346,15 @@ function FixCard({ fix, onApplied }) {
       )}
 
       {state === 'done' && (
-        <p className="mt-2 flex items-center gap-1.5 text-[11.5px] font-bold text-emerald-700">
-          <IconCheck size={13} />
-          {result?.target === 'skills' && result.added?.length === 0
-            ? 'Already on your profile'
-            : 'Saved to your profile'}
-        </p>
+        <div className="mt-2">
+          <p className="flex items-center gap-1.5 text-[11.5px] font-bold text-emerald-700">
+            <IconCheck size={13} />
+            {result?.target === 'skills' && result.added?.length === 0
+              ? 'Already on your profile'
+              : 'Saved to your profile'}
+          </p>
+          <AtsDelta ats={result?.ats} />
+        </div>
       )}
 
       {/* No patch and no button: the fix needs something only the student has. */}
@@ -361,5 +366,43 @@ function FixCard({ fix, onApplied }) {
 
       {error && <p className="mt-1.5 text-[11px] font-medium text-rose-600">{error}</p>}
     </li>
+  );
+}
+
+/**
+ * What the fix was worth, stated plainly.
+ *
+ * A rewritten headline usually moves the ATS score by nothing, because the
+ * score rewards content and coverage rather than phrasing. Saying so is far
+ * better than leaving the student to notice the number did not budge and
+ * conclude the button is broken.
+ */
+function AtsDelta({ ats }) {
+  if (!ats) return null;
+
+  if (ats.delta > 0) {
+    return (
+      <p className="mt-1 text-[11.5px] font-bold text-emerald-700">
+        ATS score {ats.before} → {ats.after} (+{ats.delta})
+        {ats.closed?.length > 0 && (
+          <span className="font-medium text-ink-500"> · covered {ats.closed.join(', ')}</span>
+        )}
+      </p>
+    );
+  }
+
+  if (ats.delta < 0) {
+    return (
+      <p className="mt-1 text-[11.5px] font-bold text-amber-700">
+        ATS score {ats.before} → {ats.after} ({ats.delta}). Undo this in your profile if that was not what you wanted.
+      </p>
+    );
+  }
+
+  return (
+    <p className="mt-1 text-[11.5px] leading-relaxed text-ink-500">
+      ATS score stays at {ats.after}. This fix improves how a person reads your resume —
+      the score only moves when you add coverage a scanner is looking for.
+    </p>
   );
 }

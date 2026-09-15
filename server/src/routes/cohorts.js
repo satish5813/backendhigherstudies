@@ -114,6 +114,22 @@ router.get('/:code/students/:regNo', requireAdmin, wrap(async (req, res) => {
     detail: { adminViewedRecord: record.reg_no, cohort: record.cohort_code },
   });
 
+  // Everything above is the imported spreadsheet: CRT scores, bands, the
+  // placement cell's own analysis. It is a snapshot from import day and never
+  // changes on its own.
+  //
+  // `live` is the other half — what the student has actually done since they
+  // claimed the record. Without it an officer reading this page has no way to
+  // tell an engaged student from a dormant one, and would be quoting stale
+  // numbers back at someone whose profile moved on months ago.
+  const live = record.user_id ? await liveProfileFor(record.user_id) : null;
+
+  // A claimed record whose account name looks nothing like the roster name is
+  // worth a second look — usually a shared device or a mistyped registration
+  // number at claim time. Compared loosely, because "K. Priya" and "Priya
+  // Kumari" are the same person and must not be flagged.
+  if (live) live.nameMismatch = !namesOverlap(record.name, live.name);
+
   const n = (v) => (v == null ? null : Number(v));
 
   res.json({
@@ -163,8 +179,115 @@ router.get('/:code/students/:regNo', requireAdmin, wrap(async (req, res) => {
       rating: n(c.rating), maxRating: n(c.max_rating), stars: n(c.stars),
       repos: n(c.repos), totalStars: n(c.total_stars), followers: n(c.followers),
     })),
+    live,
   });
 }));
+
+/**
+ * What this student has actually built in their own login.
+ *
+ * Deliberately a summary, not a dump: counts, titles and the best ATS score,
+ * enough for an officer to judge engagement and open the public profile for the
+ * detail. It reads the same tables the student edits, so it is current by
+ * construction — there is no copy to fall out of date.
+ */
+/**
+ * Do two names plausibly belong to the same person?
+ *
+ * Indian names reorder and abbreviate constantly across records — "Achanta
+ * Bhanu Vamsi" / "Bhanu Vamsi A" / "A. B. Vamsi" are one student. So this asks
+ * only whether any word of two or more letters is shared, which catches the
+ * genuinely-different case without crying wolf over initials and word order.
+ */
+function namesOverlap(a, b) {
+  const words = (s) => new Set(
+    String(s ?? '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1)
+  );
+  const A = words(a);
+  const B = words(b);
+  if (!A.size || !B.size) return true; // nothing to compare: do not flag
+  for (const w of A) if (B.has(w)) return true;
+  return false;
+}
+
+async function liveProfileFor(userId) {
+  const [user, skills, projects, experience, achievements, resumes, coding, applications] =
+    await Promise.all([
+      queryOne(
+        `SELECT id, name, email, slug, headline, about, avatar_url, branch, grad_year, cgpa,
+                location, open_to_work, profile_public, onboarded, last_login_at, created_at
+           FROM users WHERE id = ?`,
+        [userId]
+      ),
+      query(`SELECT name, category, proficiency FROM skills WHERE user_id = ? ORDER BY sort_order`, [userId]),
+      query(`SELECT title, role, tech, featured FROM projects WHERE user_id = ? ORDER BY featured DESC, sort_order`, [userId]),
+      query(`SELECT company, role, type, start_date, end_date FROM experiences WHERE user_id = ? ORDER BY sort_order`, [userId]),
+      query(`SELECT title, issuer, category, date FROM achievements WHERE user_id = ? ORDER BY sort_order`, [userId]),
+      query(`SELECT id, title, target_role, template, ats_score, updated_at FROM resumes WHERE user_id = ? ORDER BY ats_score DESC`, [userId]),
+      query(`SELECT platform, username, status, solved_total, contest_rating, fetched_at FROM coding_profiles WHERE user_id = ?`, [userId]),
+      query(
+        `SELECT a.status, a.applied_at, a.proof_file IS NOT NULL AS has_proof, j.title, j.company
+           FROM job_applications a JOIN jobs j ON j.id = a.job_id
+          WHERE a.user_id = ? ORDER BY a.applied_at DESC LIMIT 20`,
+        [userId]
+      ),
+    ]);
+
+  if (!user) return null;
+
+  const json = (v) => {
+    if (v == null) return [];
+    if (Array.isArray(v)) return v;
+    try { return JSON.parse(v); } catch { return []; }
+  };
+
+  return {
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    slug: user.slug,
+    headline: user.headline,
+    about: user.about,
+    avatarUrl: user.avatar_url,
+    branch: user.branch,
+    gradYear: user.grad_year,
+    cgpa: user.cgpa == null ? null : Number(user.cgpa),
+    location: user.location,
+    openToWork: Boolean(user.open_to_work),
+    profilePublic: Boolean(user.profile_public),
+    onboarded: Boolean(user.onboarded),
+    lastLoginAt: user.last_login_at,
+    joinedAt: user.created_at,
+
+    counts: {
+      skills: skills.length,
+      projects: projects.length,
+      experience: experience.length,
+      achievements: achievements.length,
+      resumes: resumes.length,
+      applications: applications.length,
+    },
+    skills: skills.map((s) => s.name),
+    projects: projects.map((p) => ({ title: p.title, role: p.role, tech: json(p.tech), featured: Boolean(p.featured) })),
+    experience: experience.map((e) => ({
+      company: e.company, role: e.role, type: e.type, startDate: e.start_date, endDate: e.end_date,
+    })),
+    achievements: achievements.map((a) => ({ title: a.title, issuer: a.issuer, category: a.category, date: a.date })),
+    resumes: resumes.map((r) => ({
+      id: r.id, title: r.title, targetRole: r.target_role, template: r.template,
+      atsScore: r.ats_score, updatedAt: r.updated_at,
+    })),
+    bestAtsScore: resumes.length ? Math.max(...resumes.map((r) => r.ats_score ?? 0)) : null,
+    coding: coding.map((c) => ({
+      platform: c.platform, username: c.username, status: c.status,
+      solved: c.solved_total, rating: c.contest_rating, fetchedAt: c.fetched_at,
+    })),
+    applications: applications.map((a) => ({
+      title: a.title, company: a.company, status: a.status,
+      appliedAt: a.applied_at, hasProof: Boolean(a.has_proof),
+    })),
+  };
+}
 
 /**
  * GET /api/cohorts/:code/analytics — everything the admin dashboard plots.

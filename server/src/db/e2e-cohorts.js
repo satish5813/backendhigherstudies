@@ -222,7 +222,56 @@ async function main() {
     !/mobile|dateOfBirth|date_of_birth/.test(JSON.stringify(directory.data)));
 
   /* ------------------------------------------------------------- teardown */
-  console.log('\nCleanup');
+  console.log("\nWhat the admin sees of the student's own profile");
+{
+  // A record nobody has claimed must carry no live block at all -- there is no
+  // account behind it to read.
+  const unclaimed = await queryOne(
+    "SELECT sr.reg_no, c.code FROM student_records sr JOIN cohorts c ON c.id = sr.cohort_id" +
+    ' WHERE sr.user_id IS NULL LIMIT 1'
+  );
+  if (unclaimed) {
+    const r = await call('GET', '/api/cohorts/' + unclaimed.code + '/students/' + unclaimed.reg_no, undefined, adminToken);
+    check('an unclaimed record has no live profile', r.status === 200 && r.data.live === null);
+  }
+
+  // The claimed one this suite created should expose what the student entered.
+  const mine = !withEmail ? null : await queryOne(
+    "SELECT sr.reg_no, c.code FROM student_records sr JOIN cohorts c ON c.id = sr.cohort_id" +
+    ' WHERE sr.user_id = (SELECT id FROM users WHERE email = ?) LIMIT 1',
+    [withEmail.placement_email.toLowerCase()]
+  );
+
+  if (mine && withEmail) {
+    const r = await call('GET', '/api/cohorts/' + mine.code + '/students/' + mine.reg_no, undefined, adminToken);
+    check('a claimed record carries a live profile', r.status === 200 && Boolean(r.data.live));
+
+    const live = r.data.live ?? {};
+    check('it names the account behind the record', Boolean(live.email));
+    check('it counts what the student has entered', typeof live.counts?.skills === 'number');
+    check('it lists their skills', Array.isArray(live.skills));
+    check('it lists the resumes they built', Array.isArray(live.resumes));
+    check('it reports where they applied', Array.isArray(live.applications));
+    check('it flags a name mismatch either way', typeof live.nameMismatch === 'boolean');
+
+    // The live block is a placement view, not a data dump: contact details from
+    // the imported record stay in the contact block, which is already access-logged.
+    check('the live block carries no mobile number', !('mobile' in live));
+    check('the live block carries no date of birth', !('dateOfBirth' in live));
+
+    // It has to be LIVE, not a copy. Change the profile and read it back.
+    await execute('UPDATE users SET headline = ? WHERE email = ?',
+      ['E2E live-read probe', withEmail.placement_email.toLowerCase()]);
+    const again = await call('GET', '/api/cohorts/' + mine.code + '/students/' + mine.reg_no, undefined, adminToken);
+    check('an edit by the student shows up immediately',
+      again.data?.live?.headline === 'E2E live-read probe', again.data?.live?.headline);
+  }
+
+  const asStudent = await call('GET', '/api/cohorts/lpa7/students/' + (mine?.reg_no ?? '0'), undefined, studentToken);
+  check('a student cannot read anyone\'s report', asStudent.status === 403, 'got ' + asStudent.status);
+}
+
+console.log('\nCleanup');
   for (const email of new Set(cleanup)) {
     await execute(`DELETE FROM users WHERE email = ?`, [email]);
   }

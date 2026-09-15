@@ -5,6 +5,9 @@ import { requireAuth } from '../middleware/auth.js';
 import { validate, wrap, writeLimiter, HttpError } from '../middleware/common.js';
 import { aiStatus, improveBullet, reviewResume, sanitiseApply, writeSummary } from '../services/ai.js';
 import { execute, query, queryOne } from '../config/db.js';
+import { loadFullProfile } from './profile.js';
+import { buildResumeData, pruneEmpty } from '../services/resumeBuilder.js';
+import { scoreResume } from '../services/atsScore.js';
 import { clientIp, ACTIONS, logActivity } from '../utils/activity.js';
 
 const router = Router();
@@ -108,7 +111,56 @@ router.post('/review/:resumeId', aiLimiter, wrap(async (req, res) => {
 const applySchema = z.object({
   target: z.enum(['headline', 'summary', 'skills']),
   value: z.union([z.string().trim().min(1), z.array(z.string().trim().min(1)).min(1)]),
+  // Optional: the resume the student is looking at. Given one, the change is
+  // pulled straight back into it and the ATS score is recomputed, so the
+  // response can say what the fix was actually worth.
+  resumeId: z.coerce.number().int().positive().nullish(),
 });
+
+/**
+ * Re-pull the profile into one resume and re-score it.
+ *
+ * Without this the student applies a fix, the number on screen does not move,
+ * and the feature looks broken — even when it worked. Returning before/after
+ * lets the UI say "78 → 80", or say plainly that a rewrite changed no keywords,
+ * which is the honest answer for most headline edits.
+ */
+async function rescoreResume(userId, resumeId) {
+  const row = await queryOne(`SELECT * FROM resumes WHERE id = ? AND user_id = ?`, [resumeId, userId]);
+  if (!row) return null;
+
+  const before = row.ats_score;
+  const profile = await loadFullProfile(userId);
+  const data = pruneEmpty(buildResumeData(profile, { targetRole: row.target_role }));
+  const report = scoreResume(data, {
+    targetRole: row.target_role,
+    jobDescription: row.job_description,
+    template: row.template,
+  });
+
+  await execute(
+    `UPDATE resumes SET data = ?, ats_score = ?, ats_report = ? WHERE id = ?`,
+    [JSON.stringify(data), report.score, JSON.stringify(report), resumeId]
+  );
+
+  return {
+    before,
+    after: report.score,
+    delta: report.score - before,
+    // What the student most wants to know: did this close a keyword gap?
+    closed: (() => {
+      const prev = safeJson(row.ats_report)?.missingKeywords ?? [];
+      const now = new Set(report.missingKeywords ?? []);
+      return prev.filter((k) => !now.has(k));
+    })(),
+  };
+}
+
+function safeJson(v) {
+  if (v == null) return null;
+  if (typeof v !== 'string') return v;
+  try { return JSON.parse(v); } catch { return null; }
+}
 
 router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res) => {
   // Re-run the same guard the review used. The client could post anything, and
@@ -125,7 +177,7 @@ router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res)
     const fresh = clean.value.filter((s) => !have.has(s.toLowerCase()));
 
     if (!fresh.length)
-      return res.json({ ok: true, target: 'skills', added: [], message: 'You already have all of those.' });
+      return res.json({ ok: true, target: 'skills', added: [], ats: null, message: 'You already have all of those.' });
 
     const [{ next }] = await query(
       `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM skills WHERE user_id = ?`, [req.user.id]
@@ -137,13 +189,15 @@ router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res)
       );
     }
 
+    const ats = req.body.resumeId ? await rescoreResume(req.user.id, req.body.resumeId) : null;
     await logActivity(req, {
-      userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: 'skills', added: fresh },
+      userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: 'skills', added: fresh, delta: ats?.delta },
     });
     return res.json({
       ok: true,
       target: 'skills',
       added: fresh,
+      ats,
       message: `Added ${fresh.length} skill${fresh.length === 1 ? '' : 's'} to your profile.`,
     });
   }
@@ -152,8 +206,9 @@ router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res)
   const before = await queryOne(`SELECT ${column} AS v FROM users WHERE id = ?`, [req.user.id]);
   await execute(`UPDATE users SET ${column} = ? WHERE id = ?`, [clean.value, req.user.id]);
 
+  const ats = req.body.resumeId ? await rescoreResume(req.user.id, req.body.resumeId) : null;
   await logActivity(req, {
-    userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: clean.target },
+    userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: clean.target, delta: ats?.delta },
   });
   res.json({
     ok: true,
@@ -161,6 +216,7 @@ router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res)
     // Returned so the UI can offer an undo without a second round trip.
     previous: before?.v ?? null,
     value: clean.value,
+    ats,
     message: clean.target === 'headline' ? 'Headline updated.' : 'Summary updated.',
   });
 }));

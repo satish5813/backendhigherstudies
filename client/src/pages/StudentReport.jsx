@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { cohortApi } from '../lib/api';
+import LivePanel from '../components/cohorts/LivePanel';
 import { Badge, EmptyState, PageLoader, ScoreRing } from '../components/ui';
 import {
   IconArrowLeft, IconAward, IconCode, IconDownload, IconExternal, IconUser,
@@ -238,6 +239,8 @@ export default function StudentReport() {
       </div>
 
       {/* ------------------------------------------------------------ notes */}
+      <LivePanel live={s.live} recordName={s.name} />
+
       {(s.coaching.strengths || s.coaching.gaps || s.coaching.plan || s.coaching.notes) && (
         <section className="card p-5">
           <h2 className="flex items-center gap-2 text-base font-bold tracking-tight text-ink-900">
