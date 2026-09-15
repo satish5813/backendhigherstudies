@@ -438,3 +438,20 @@ CREATE TABLE IF NOT EXISTS job_ingest_runs (
   PRIMARY KEY (id),
   KEY idx_ingest_started (started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Uploaded files: profile photos and application-proof screenshots.
+--
+-- Stored in the database rather than on disk because the container's disk is
+-- ephemeral: every redeploy wiped every photo. The rows are small (a photo is
+-- a 512px JPEG, a proof is capped at 1600px) and they ride along with backups.
+CREATE TABLE IF NOT EXISTS stored_files (
+  name       VARCHAR(160) NOT NULL,
+  kind       ENUM('avatar','proof') NOT NULL,
+  owner_id   BIGINT UNSIGNED DEFAULT NULL COMMENT 'user for an avatar, application for a proof',
+  mime       VARCHAR(80)  NOT NULL DEFAULT 'image/jpeg',
+  size       INT UNSIGNED NOT NULL,
+  bytes      LONGBLOB     NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (name),
+  KEY idx_stored_kind_owner (kind, owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

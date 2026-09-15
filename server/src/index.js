@@ -12,6 +12,9 @@ import { env, assertProductionConfig } from './config/env.js';
 import { healthCheck } from './config/db.js';
 import { apiLimiter, errorHandler, notFound } from './middleware/common.js';
 import { verifyMailer, mailerStatus } from './services/mailer.js';
+import { avatarOnDisk, readAvatar } from './services/avatars.js';
+import { proofPath } from './services/proofs.js';
+import { reconcileReferences } from './services/fileStore.js';
 import { aiStatus } from './services/ai.js';
 import { startScheduler } from './jobs/scheduler.js';
 
@@ -122,13 +125,33 @@ app.use('/api/u', publicRoutes);
 
 // Profile photos. Long cache is safe because every upload gets a fresh
 // filename, so a replaced photo can never be served from a stale cache.
+//
+// Served from the database first (services/fileStore.js) — the container's
+// disk does not survive a redeploy — then from the disk for anything uploaded
+// before that change. A miss is a 404, not the app's HTML: the SPA fallback
+// below would otherwise answer an <img> with a page, which a browser shows as
+// a broken picture and a CDN happily caches as a success.
 const uploadsDir = path.resolve(here, '../uploads');
 fs.mkdirSync(path.join(uploadsDir, 'avatars'), { recursive: true });
+app.get('/uploads/avatars/:name', async (req, res, next) => {
+  try {
+    const found = await readAvatar(req.params.name);
+    if (!found) return next();
+    res.setHeader('Content-Type', found.mime);
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    res.send(found.bytes);
+  } catch (err) {
+    next(err);
+  }
+});
 app.use('/uploads', express.static(uploadsDir, {
   maxAge: '30d',
   index: false,
   setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=2592000, immutable'),
 }));
+app.use('/uploads', (_req, res) => {
+  res.status(404).type('text/plain').send('Not found');
+});
 
 /* ------------------------------------------------- static SPA (production) */
 
@@ -197,6 +220,15 @@ async function ensureSchema() {
     const { runMigrations } = await import('./db/migrate.js');
     schemaTables = await runMigrations({ quiet: true });
     console.log(`[db] schema ready — ${schemaTables} tables`);
+
+    // Uploads used to live on disk and a redeploy wiped them, leaving profiles
+    // pointing at photos that no longer existed. Clear any such reference so
+    // the page shows initials and invites a fresh upload, rather than a broken
+    // image. Files still on disk (a development machine) are left alone.
+    const cleared = await reconcileReferences({
+      exists: (kind, name) => (kind === 'avatar' ? avatarOnDisk(name) : Promise.resolve(Boolean(proofPath(name)))),
+    });
+    if (cleared) console.log(`[files] cleared ${cleared} reference(s) to uploads that no longer exist`);
   } catch (err) {
     console.error(`[db] SCHEMA SETUP FAILED: ${err.message}`);
     console.error('[db] the API will answer 500 on anything that reads a table');

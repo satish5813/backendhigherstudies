@@ -13,7 +13,7 @@ import { execute, query, queryOne } from '../config/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate, writeLimiter, wrap, HttpError } from '../middleware/common.js';
 import { hydrateJob } from '../services/jobAlerts.js';
-import { deleteProof, proofLimits, proofPath, saveProof } from '../services/proofs.js';
+import { deleteProof, proofLimits, readProof, saveProof } from '../services/proofs.js';
 import { ACTIONS, logActivity } from '../utils/activity.js';
 
 const router = Router();
@@ -181,13 +181,13 @@ router.get('/:id/proof', wrap(async (req, res) => {
   if (row.user_id !== req.user.id && req.user.role !== 'admin')
     throw new HttpError(403, 'That screenshot is not yours.', 'forbidden');
 
-  const full = proofPath(row.proof_file);
-  if (!full) throw new HttpError(404, 'That screenshot is missing from disk.', 'not_found');
+  const found = await readProof(row.proof_file);
+  if (!found) throw new HttpError(404, 'That screenshot is no longer available — upload it again.', 'not_found');
 
   // Private: never let a shared cache or a CDN hold a copy.
   res.setHeader('Cache-Control', 'private, no-store');
-  res.setHeader('Content-Type', 'image/jpeg');
-  res.sendFile(full);
+  res.setHeader('Content-Type', found.mime);
+  res.send(found.bytes);
 }));
 
 /** DELETE /api/jobs/applications/:id — student withdraws the record entirely. */

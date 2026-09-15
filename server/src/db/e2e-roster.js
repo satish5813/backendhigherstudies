@@ -166,6 +166,29 @@ async function main() {
     r = await call('POST', '/api/auth/check-email', { email: STUDENT });
     check('an existing account is recognised on the next visit', r.data?.valid === true && r.data?.exists === true, JSON.stringify(r.data));
 
+    /* --------------------------------------------------------- A2. photos */
+    console.log('\nProfile photos survive a redeploy');
+    {
+      const sharp = (await import('sharp')).default;
+      const png = await sharp({ create: { width: 240, height: 240, channels: 3, background: '#a41c24' } }).png().toBuffer();
+      const fd = new FormData();
+      fd.append('photo', new Blob([png], { type: 'image/png' }), 'photo.png');
+      const up = await fetch(`${BASE}/api/profile/avatar`, { method: 'POST', headers: { Authorization: `Bearer ${studentToken}` }, body: fd });
+      const upBody = await up.json().catch(() => ({}));
+      const avatarUrl = upBody.avatarUrl || upBody.url || upBody.user?.avatarUrl;
+      check('a student can upload a photo', up.status === 200 && /^\/uploads\/avatars\/.+\.jpg$/.test(avatarUrl || ''), `${up.status} ${JSON.stringify(upBody).slice(0, 120)}`);
+      const name = String(avatarUrl || '').split('/').pop();
+      const inDb = await queryOne(`SELECT kind, size, mime FROM stored_files WHERE name = ?`, [name]);
+      check('...and it is stored in the database, not on the disk', inDb?.kind === 'avatar' && inDb.size > 1000, JSON.stringify(inDb));
+      const img = await fetch(`${BASE}${avatarUrl}`);
+      check('...and is served back as an image', img.status === 200 && (img.headers.get('content-type') || '').startsWith('image/jpeg'), `${img.status} ${img.headers.get('content-type')}`);
+      const missing = await fetch(`${BASE}/uploads/avatars/0-doesnotexist.jpg`);
+      check('a missing photo is a 404, not the app page', missing.status === 404 && !(missing.headers.get('content-type') || '').includes('html'), `${missing.status} ${missing.headers.get('content-type')}`);
+      const del = await call('DELETE', '/api/profile/avatar', undefined, studentToken);
+      const gone = await queryOne(`SELECT 1 AS x FROM stored_files WHERE name = ?`, [name]);
+      check('removing the photo deletes the stored file', del.status === 200 && !gone, `${del.status}`);
+    }
+
     /* ----------------------------------------------------------- B. admin */
     console.log('\nAdministrators');
     const admin = await signIn(ADMIN, 'Placement Cell');
