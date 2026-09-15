@@ -72,6 +72,15 @@ export default function Directory() {
           <>
             <p className="mb-5 text-sm text-ink-500">
               {data.total} public profile{data.total === 1 ? '' : 's'}
+              {/* A roster of 537 with one published profile looks broken unless
+                  the page says why. It is not a bug: students publish their own
+                  profile, and the imported record holds none of that. */}
+              {data.roster?.onRoster > 0 && (
+                <span className="text-ink-400">
+                  {' · '}{data.roster.onRoster} student{data.roster.onRoster === 1 ? '' : 's'} on the
+                  placement roster{data.roster.published < data.roster.onRoster && ', the rest have not published one yet'}
+                </span>
+              )}
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -160,6 +160,17 @@ router.get('/', wrap(async (req, res) => {
     }
   }
 
+  const [rosterRow] = await query(
+    `SELECT COUNT(*) AS onRoster, SUM(user_id IS NOT NULL) AS claimed
+       FROM student_records${req.query.campus ? ' WHERE campus = ?' : ''}`,
+    req.query.campus ? [req.query.campus] : []
+  );
+  const roster = {
+    onRoster: Number(rosterRow?.onRoster ?? 0),
+    claimed: Number(rosterRow?.claimed ?? 0),
+    published: total,
+  };
+
   res.json({
     items: rows.map((r) => ({
       name: r.name,
@@ -176,6 +187,12 @@ router.get('/', wrap(async (req, res) => {
     total,
     page,
     pages: Math.ceil(total / perPage),
+    // Context, so an almost-empty page explains itself instead of looking
+    // broken. A placement record is not a profile: the roster holds CRT scores
+    // and readiness bands, and none of a student's own writing exists until
+    // they sign in and publish. 537 students on the roster with one published
+    // profile is an accurate picture, and worth stating plainly.
+    roster,
   });
 }));
 

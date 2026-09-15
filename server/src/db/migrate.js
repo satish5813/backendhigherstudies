@@ -79,6 +79,10 @@ async function main() {
     { table: 'jobs', column: 'reviewed_at', definition: `DATETIME DEFAULT NULL`, after: 'reviewed_by' },
     { table: 'jobs', column: 'review_note', definition: `VARCHAR(500) DEFAULT NULL`, after: 'reviewed_at' },
     { table: 'jobs', column: 'ingested_at', definition: `DATETIME DEFAULT NULL`, after: 'review_note' },
+    // When this student was emailed an invitation to claim their record, so a
+    // second send can target only the people who never responded.
+    { table: 'student_records', column: 'invited_at', definition: `DATETIME DEFAULT NULL`, after: 'claimed_at' },
+    { table: 'student_records', column: 'invite_count', definition: `TINYINT UNSIGNED NOT NULL DEFAULT 0`, after: 'invited_at' },
     // Whether the apply link actually resolves. A sourced posting can be taken
     // down between the sweep and the morning review, and an officer clearing a
     // 200-row queue cannot click every link — so the queue reports it.
