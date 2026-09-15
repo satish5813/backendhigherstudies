@@ -191,6 +191,27 @@ function JobCard({ job, applied, onOpen }) {
         )}
       </div>
 
+      {/* Core subjects first. These are what a campus student revises for the
+          interview — DSA, OS, DBMS — and the model reads them out of the
+          description rather than guessing from the title. The technology chips
+          below are what they would pick up on the job. */}
+      {job.coreSubjects?.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-eyebrow text-ink-400">Tests</span>
+          {job.coreSubjects.map((k) => (
+            <span
+              key={k}
+              className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[11px] font-bold text-brand-700 ring-1 ring-brand-100"
+            >
+              {k}
+            </span>
+          ))}
+          {job.yearsRequired === 0 && (
+            <span className="text-[10.5px] font-semibold text-emerald-700">· open to freshers</span>
+          )}
+        </div>
+      )}
+
       {job.skills?.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {job.skills.slice(0, 6).map((s) => (

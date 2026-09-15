@@ -58,12 +58,32 @@ async function main() {
   /* ------------------------------------------------------------- reachable */
   console.log('Reachability');
   const health = await call('/api/health');
-  if (!ok(`GET /api/health → 200 (${health.ms}ms)`, health.status === 200, health.error || `got ${health.status}`)) {
-    console.log('\n  Nothing is answering. Is the server running, and is API_BASE right?\n');
+
+  // A reachable app reporting itself unhealthy is a different situation from
+  // nothing answering, and far more useful to keep testing: the routes that do
+  // not touch the database still tell us whether the build, the environment
+  // and the auth layer are sound.
+  if (!health.data && health.status !== 200) {
+    ok(`GET /api/health (${health.ms}ms)`, false, health.error || `got ${health.status}`);
+    console.log('\n  Nothing is answering at all. Is the container running, and is API_BASE right?\n');
     process.exit(1);
   }
-  ok('database reachable', health.data?.db === true, JSON.stringify(health.data));
-  ok('mail subsystem reports status', 'mail' in (health.data ?? {}));
+
+  ok(`the app answers (${health.ms}ms)`, Boolean(health.data));
+  ok('it is running as itself', health.data?.service === 'KL Placement Readiness', health.data?.service);
+  // Only a failure when the target looks like a real deployment. Running this
+  // against localhost during development is the normal case, not a fault.
+  if (/localhost|127\.0\.0\.1/.test(BASE)) {
+    ok(`environment: ${health.data?.env} (local run)`, true);
+  } else {
+    ok('NODE_ENV is production', health.data?.env === 'production', `env=${health.data?.env}`);
+  }
+  ok('database reachable', health.data?.db === true,
+    'db:false — the app cannot reach MySQL. Everything below that needs data will fail.');
+  ok('mail is configured', health.data?.mail?.configured === true, 'no SMTP host set');
+  if (health.data?.mail?.configured && !health.data?.mail?.verified) {
+    caution('SMTP configured but not verified', 'usually a wrong or missing SMTP_PASS — no student receives a code');
+  }
 
   /* --------------------------------------------------------- configuration */
   console.log('\nConfiguration');
