@@ -8,7 +8,7 @@
  */
 import { execute, pool, query, queryOne } from '../config/db.js';
 import { env } from '../config/env.js';
-import { estimateCtc, isFresherRole, isIndia, isPlaceableRole, normalise, parseCtc } from '../services/jobIngest.js';
+import { employerTier, estimateCtc, isFresherRole, isIndia, isPlaceableRole, normalise, parseCtc } from '../services/jobIngest.js';
 
 const BASE = process.env.E2E_BASE || `http://localhost:${env.port}`;
 const API = `${BASE}/api`;
@@ -74,6 +74,33 @@ async function main() {
         .every((t) => estimateCtc(t).max <= 40));
     check('unknown title gets no band', estimateCtc('Zookeeper') === null);
 
+    // Employer tier leads the estimate, because in India the company decides a
+    // fresher package far more than the title does.
+    check('a global product company is the top tier', employerTier('Stripe')?.tier === 'global');
+    check('an Indian unicorn is the middle tier', employerTier('Meesho')?.tier === 'product');
+    check('a services company is the bottom tier', employerTier('Infosys')?.tier === 'services');
+    check('an unknown employer has no tier', employerTier('Acme Widgets') === null);
+    check('the same title pays more at a global company',
+      estimateCtc('Software Engineer', 'Stripe').min > estimateCtc('Software Engineer', 'Infosys').min);
+    check('a services fresher role does not clear 20 LPA',
+      estimateCtc('Software Engineer', 'Infosys').min < 20);
+    check('a global fresher role does clear 20 LPA',
+      estimateCtc('Software Engineer', 'Databricks').min >= 20);
+    check('an AI role carries a premium over a plain one',
+      estimateCtc('Machine Learning Engineer', 'Databricks').min > estimateCtc('Software Engineer', 'Databricks').min);
+    check('a support role sits below the median',
+      estimateCtc('Technical Services Engineer', 'Databricks').min < estimateCtc('Software Engineer', 'Databricks').min);
+    check('an intern is paid as an intern even at a top employer',
+      estimateCtc('Software Engineer Intern', 'Stripe').min < 20);
+
+    // The filter now tests the FLOOR of the band, not its optimistic top.
+    check('a services role is dropped below the floor',
+      normalise({ externalId: 'greenhouse:i:1', title: 'Software Engineer', company: 'Infosys',
+        location: 'Bengaluru, India', description: 'Java', applyUrl: 'https://x.test/i' }).skip === 'below_floor');
+    check('a global-tier role is kept',
+      Boolean(normalise({ externalId: 'greenhouse:s:1', title: 'Software Engineer', company: 'Stripe',
+        location: 'Bengaluru, India', description: 'Java', applyUrl: 'https://x.test/s' }).row));
+
     // The gate that keeps a final-year student out of roles they cannot get.
     check('a director role is not a fresher role', !isFresherRole('Director of Engineering'));
     check('a staff role is not a fresher role', !isFresherRole('Staff Software Engineer'));
@@ -113,7 +140,9 @@ async function main() {
   {
     const base = {
       // A fresher title: 'Senior ...' is now dropped before any other rule runs.
-      externalId: 'greenhouse:acme:1', title: 'Software Engineer', company: 'Acme',
+      // A recognised employer: 'Acme' has no tier, so it falls back to the wide
+      // title band and no longer clears the 20 LPA floor — which is correct.
+      externalId: 'greenhouse:acme:1', title: 'Software Engineer', company: 'Databricks',
       location: 'Bengaluru, India', description: 'Java, Kubernetes and AWS.', applyUrl: 'https://x.test/1',
     };
     check('a good posting is kept', Boolean(normalise(base).row));

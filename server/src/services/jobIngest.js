@@ -221,7 +221,97 @@ const TITLE_BANDS = [
   [/\b(engineer|developer|analyst)\b/i,                                 { min: 5, max: 24 }],
 ];
 
-export function estimateCtc(title) {
+/**
+ * Employer tier — the strongest signal there is for a fresher package.
+ *
+ * Judging by job title alone estimated every "Software Engineer" at 6-28 LPA,
+ * which is useless: the same title is worth about 5 LPA at a services company
+ * and about 40 at a global product company hiring into the same city. Title
+ * says what the work is; the employer says what it pays.
+ *
+ * These are entry-level total-comp ranges for Indian offices, deliberately
+ * conservative at the top. Anything not listed falls back to the title band and
+ * is flagged `estimated` exactly as before — an unknown employer is genuinely
+ * unknown, and guessing high would put a number in front of a student that
+ * nobody is going to honour.
+ */
+const EMPLOYER_TIERS = [
+  {
+    tier: 'global',
+    band: { min: 28, max: 60 },
+    names: [
+      'stripe', 'databricks', 'openai', 'anthropic', 'coinbase', 'rubrik', 'mongodb',
+      'notion', 'gitlab', 'atlassian', 'elastic', 'airbnb', 'cloudflare', 'twilio',
+      'samsara', 'confluent', 'hashicorp', 'snowflake', 'uber', 'google', 'microsoft',
+      'amazon', 'meta', 'apple', 'netflix', 'salesforce', 'adobe', 'nvidia', 'linkedin',
+      'zscaler', 'druva', 'flexport', 'sumologic', 'postman', 'atlan', 'figma',
+      'datadog', 'sprinklr', 'servicenow', 'vmware', 'qualcomm', 'intuit', 'paypal',
+    ],
+  },
+  {
+    tier: 'product',
+    band: { min: 14, max: 35 },
+    names: [
+      'meesho', 'cred', 'zeta', 'razorpay', 'swiggy', 'zomato', 'phonepe', 'groww',
+      'zepto', 'flipkart', 'ola', 'paytm', 'dream11', 'sharechat', 'mindtickle',
+      'hevodata', 'freshworks', 'zoho', 'browserstack', 'chargebee', 'innovaccer',
+      'icertis', 'whatfix', 'postman india', 'jupiter', 'upstox', 'navi', 'cars24',
+    ],
+  },
+  {
+    tier: 'services',
+    band: { min: 4, max: 9 },
+    names: [
+      'infosys', 'tata consultancy', 'tcs', 'wipro', 'accenture', 'cognizant',
+      'capgemini', 'hcl', 'tech mahindra', 'ltimindtree', 'mindtree', 'deloitte',
+      'ibm india', 'dxc', 'mphasis', 'virtusa', 'hexaware', 'birlasoft',
+    ],
+  },
+];
+
+export function employerTier(company) {
+  const c = String(company ?? '').toLowerCase().replace(/[^a-z0-9 ]/g, '');
+  for (const { tier, band, names } of EMPLOYER_TIERS) {
+    if (names.some((n) => c.includes(n))) return { tier, band };
+  }
+  return null;
+}
+
+/**
+ * Relative pay of a role within an employer, as a multiplier on its tier band.
+ * AI and infrastructure roles carry a premium; support-adjacent engineering
+ * sits below the median even at a company that pays well.
+ */
+const ROLE_WEIGHT = [
+  [/\b(machine learning|ml engineer|ai engineer|applied ai|research|deep learning)\b/i, 1.15],
+  [/\b(infrastructure|platform|distributed|systems|security|cryptography)\b/i, 1.05],
+  [/\b(software|backend|full ?stack|front ?end|mobile|android|ios|data) (engineer|developer)\b/i, 1.0],
+  [/\b(support|escalation|solutions?|technical services|field|deployment|implementation)\b/i, 0.8],
+  [/\b(qa|test|automation)\b/i, 0.85],
+];
+
+function roleWeight(title) {
+  const t = String(title ?? '');
+  for (const [re, w] of ROLE_WEIGHT) if (re.test(t)) return w;
+  return 1;
+}
+
+/**
+ * @param {string} title
+ * @param {string} [company] — when known, the employer tier leads and the
+ *   title only adjusts it. Without it this degrades to the old title-only
+ *   guess, which is wide and honest about being wide.
+ */
+export function estimateCtc(title, company) {
+  const tiered = employerTier(company);
+  if (tiered) {
+    const w = roleWeight(title);
+    // Interns are paid as interns regardless of who the employer is.
+    if (/\b(intern|internship|trainee|apprentice)\b/i.test(String(title ?? '')))
+      return { min: round2(tiered.band.min * 0.25), max: round2(tiered.band.max * 0.3) };
+    return { min: round2(tiered.band.min * w), max: round2(tiered.band.max * w) };
+  }
+
   const t = String(title ?? '');
   for (const [re, band] of TITLE_BANDS) if (re.test(t)) return band;
   return null;
@@ -301,7 +391,7 @@ export function normalise(raw, { minCtc = env.jobs.minCtc, maxCtc = env.jobs.max
     : parseCtc(raw.payText) ?? parseCtc(description.slice(0, 1500));
 
   if (!band) {
-    band = estimateCtc(raw.title);
+    band = estimateCtc(raw.title, raw.company);
     ctcSource = band ? 'estimated' : 'unknown';
   }
 
@@ -310,10 +400,13 @@ export function normalise(raw, { minCtc = env.jobs.minCtc, maxCtc = env.jobs.max
   // below_floor — the admin can widen the sources if the count looks wrong.
   if (!band) return { skip: 'no_salary' };
 
-  // Compare on the TOP of the range: a "20-35 LPA" role clears a 20 floor, and
-  // so does an estimated 18-35 band. The officer sees the range and decides.
-  const ceiling = band.max ?? band.min;
-  if (ceiling < minCtc) return { skip: 'below_floor' };
+  // Compare on the FLOOR of the range, not the top.
+  //
+  // Testing the ceiling let a "6-28 LPA" band through on its optimistic end,
+  // which is how a board of genuine 20 LPA+ employers ended up advertising
+  // six-lakh minimums. A student reads the first number.
+  const floor = band.min ?? band.max;
+  if (floor < minCtc) return { skip: 'below_floor' };
 
   // And a ceiling, because a fresher board has an upper bound too. A posting
   // estimated above it is almost always a senior role whose title slipped past
