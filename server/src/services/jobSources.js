@@ -24,6 +24,10 @@ import { env } from '../config/env.js';
 
 const UA = 'CareerForge/1.0 (KL University placement portal)';
 
+// Boards fetched at once. Enough to keep the sweep quick, few enough that we
+// are not hammering one host from a single university IP.
+const CONCURRENCY = 6;
+
 async function getJson(url, { timeout = 15000, headers = {} } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
@@ -40,6 +44,53 @@ async function getJson(url, { timeout = 15000, headers = {} } = {}) {
 }
 
 /**
+ * Fetch many boards at once, a few at a time.
+ *
+ * These requests are independent, so running them in sequence just multiplies
+ * the latency — eighteen Greenhouse boards took about 25 seconds one at a time
+ * and about 5 in parallel. The cap keeps us from opening eighteen sockets to
+ * the same host at once, which is the sort of thing that gets a university's IP
+ * rate-limited.
+ *
+ * Failures are RETURNED, not swallowed. A board that 404s because the company
+ * renamed its token looks exactly like a board with no open roles unless
+ * somebody counts them, and the admin dashboard is where that has to show up.
+ */
+async function mapPool(items, limit, worker) {
+  const results = [];
+  const failures = [];
+  let cursor = 0;
+
+  async function run() {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      try {
+        results.push(...(await worker(item)));
+      } catch (err) {
+        failures.push(`${item}: ${err.message}`);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return { results, failures };
+}
+
+/**
+ * Board adapters all share the same shape: walk a list of tokens, map each
+ * response into raw postings. `SourceError` carries the per-board failures up
+ * so `ingestAll` can record them against the run.
+ */
+export class PartialSourceError extends Error {
+  constructor(results, failures) {
+    super(`${failures.length} board(s) failed: ${failures.slice(0, 3).join('; ')}`);
+    this.name = 'PartialSourceError';
+    this.results = results;
+    this.failures = failures;
+  }
+}
+
+/**
  * Employers that hire in India at or above the package we care about and
  * publish through an open board API.
  *
@@ -48,16 +99,17 @@ async function getJson(url, { timeout = 15000, headers = {} } = {}) {
  * page URL: boards.greenhouse.io/<token> or jobs.lever.co/<token>.
  */
 export const BOARDS = {
+  // Every token below was probed and confirmed to (a) resolve and (b) carry
+  // India-based roles. Guessing a company's token from its name mostly does not
+  // work — "atlassian", "freshworks" and "swiggy" all 404 — so verify a new one
+  // before adding it. `node server/src/db/check-boards.js` does exactly that.
   greenhouse: [
-    'databricks', 'stripe', 'airbnb', 'dropbox', 'cloudflare', 'gitlab',
-    'atlassian', 'twilio', 'hashicorp', 'samsara', 'flexport', 'sumologic',
-    'freshworks', 'postman', 'zscaler', 'confluent', 'sprinklr', 'chargebee',
+    'databricks', 'zscaler', 'mongodb', 'stripe', 'gitlab', 'rubrik', 'elastic',
+    'razorpaysoftwareprivatelimited', 'druva', 'twilio', 'coinbase', 'samsara',
+    'airbnb', 'flexport', 'postman', 'sumologic', 'cloudflare',
   ],
-  lever: [
-    'swiggy', 'meesho', 'groww', 'spinny', 'upstox', 'leadsquared',
-    'netradyne', 'mindtickle',
-  ],
-  ashby: ['zepto', 'jupiter', 'rippling'],
+  lever: ['meesho', 'hevodata', 'mindtickle', 'zeta', 'cred'],
+  ashby: ['openai', 'atlan', 'notion'],
 };
 
 /* ------------------------------------------------------------- greenhouse */
@@ -68,32 +120,28 @@ const greenhouse = {
   needs: null,
   enabled: () => true,
   async fetch() {
-    const out = [];
-    for (const token of BOARDS.greenhouse) {
-      try {
-        const data = await getJson(
-          `https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=true`
-        );
-        for (const j of data.jobs ?? []) {
-          out.push({
-            externalId: `greenhouse:${token}:${j.id}`,
-            title: j.title,
-            company: prettify(token),
-            location: j.location?.name ?? null,
-            description: stripHtml(j.content ?? ''),
-            applyUrl: j.absolute_url,
-            postedAt: j.updated_at ?? j.first_published ?? null,
-            // Greenhouse exposes pay ranges only for jurisdictions that force
-            // it (US states, mostly). Indian roles come through blank, which is
-            // exactly what `estimateCtc` is for.
-            payText: payFromMetadata(j.metadata),
-          });
-        }
-      } catch {
-        // One dead board must not take down the other seventeen.
-      }
-    }
-    return out;
+    // One dead board must not take down the other seventeen, but it must still
+    // be counted — see mapPool.
+    const { results, failures } = await mapPool(BOARDS.greenhouse, CONCURRENCY, async (token) => {
+      const data = await getJson(
+        `https://boards-api.greenhouse.io/v1/boards/${token}/jobs?content=true`
+      );
+      return (data.jobs ?? []).map((j) => ({
+        externalId: `greenhouse:${token}:${j.id}`,
+        title: j.title,
+        company: prettify(token),
+        location: j.location?.name ?? null,
+        description: stripHtml(j.content ?? ''),
+        applyUrl: j.absolute_url,
+        postedAt: j.updated_at ?? j.first_published ?? null,
+        // Greenhouse exposes pay ranges only for jurisdictions that force it
+        // (US states, mostly). Indian roles come through blank, which is
+        // exactly what `estimateCtc` is for.
+        payText: payFromMetadata(j.metadata),
+      }));
+    });
+    if (failures.length) throw new PartialSourceError(results, failures);
+    return results;
   },
 };
 
@@ -105,27 +153,23 @@ const lever = {
   needs: null,
   enabled: () => true,
   async fetch() {
-    const out = [];
-    for (const token of BOARDS.lever) {
-      try {
-        const data = await getJson(`https://api.lever.co/v0/postings/${token}?mode=json`);
-        for (const j of data ?? []) {
-          out.push({
-            externalId: `lever:${token}:${j.id}`,
-            title: j.text,
-            company: prettify(token),
-            location: j.categories?.location ?? null,
-            description: stripHtml(j.descriptionPlain ?? j.description ?? ''),
-            applyUrl: j.hostedUrl ?? j.applyUrl,
-            postedAt: j.createdAt ? new Date(j.createdAt).toISOString() : null,
-            payText: j.salaryRange
-              ? `${j.salaryRange.currency ?? ''} ${j.salaryRange.min ?? ''}-${j.salaryRange.max ?? ''}`
-              : null,
-          });
-        }
-      } catch { /* skip this board */ }
-    }
-    return out;
+    const { results, failures } = await mapPool(BOARDS.lever, CONCURRENCY, async (token) => {
+      const data = await getJson(`https://api.lever.co/v0/postings/${token}?mode=json`);
+      return (data ?? []).map((j) => ({
+        externalId: `lever:${token}:${j.id}`,
+        title: j.text,
+        company: prettify(token),
+        location: j.categories?.location ?? null,
+        description: stripHtml(j.descriptionPlain ?? j.description ?? ''),
+        applyUrl: j.hostedUrl ?? j.applyUrl,
+        postedAt: j.createdAt ? new Date(j.createdAt).toISOString() : null,
+        payText: j.salaryRange
+          ? `${j.salaryRange.currency ?? ''} ${j.salaryRange.min ?? ''}-${j.salaryRange.max ?? ''}`
+          : null,
+      }));
+    });
+    if (failures.length) throw new PartialSourceError(results, failures);
+    return results;
   },
 };
 
@@ -137,27 +181,23 @@ const ashby = {
   needs: null,
   enabled: () => true,
   async fetch() {
-    const out = [];
-    for (const token of BOARDS.ashby) {
-      try {
-        const data = await getJson(
-          `https://api.ashbyhq.com/posting-api/job-board/${token}?includeCompensation=true`
-        );
-        for (const j of data.jobs ?? []) {
-          out.push({
-            externalId: `ashby:${token}:${j.id}`,
-            title: j.title,
-            company: data.name || prettify(token),
-            location: j.location ?? null,
-            description: stripHtml(j.descriptionPlain ?? j.descriptionHtml ?? ''),
-            applyUrl: j.jobUrl ?? j.applyUrl,
-            postedAt: j.publishedAt ?? null,
-            payText: j.compensation?.summary ?? null,
-          });
-        }
-      } catch { /* skip this board */ }
-    }
-    return out;
+    const { results, failures } = await mapPool(BOARDS.ashby, CONCURRENCY, async (token) => {
+      const data = await getJson(
+        `https://api.ashbyhq.com/posting-api/job-board/${token}?includeCompensation=true`
+      );
+      return (data.jobs ?? []).map((j) => ({
+        externalId: `ashby:${token}:${j.id}`,
+        title: j.title,
+        company: data.name || prettify(token),
+        location: j.location ?? null,
+        description: stripHtml(j.descriptionPlain ?? j.descriptionHtml ?? ''),
+        applyUrl: j.jobUrl ?? j.applyUrl,
+        postedAt: j.publishedAt ?? null,
+        payText: j.compensation?.summary ?? null,
+      }));
+    });
+    if (failures.length) throw new PartialSourceError(results, failures);
+    return results;
   },
 };
 

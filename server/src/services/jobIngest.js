@@ -304,8 +304,25 @@ export async function ingestAll({ only = null, dryRun = false } = {}) {
     let status = 'ok';
     let error = null;
 
+    let raws = [];
     try {
-      const raws = await source.fetch();
+      raws = await source.fetch();
+    } catch (err) {
+      // A source that lost SOME of its boards still has usable results. Keep
+      // them, mark the run `partial`, and record which boards broke — a renamed
+      // board token is otherwise indistinguishable from a company that simply
+      // has nothing open.
+      if (err.name === 'PartialSourceError') {
+        raws = err.results;
+        status = 'partial';
+        error = err.message.slice(0, 500);
+      } else {
+        status = 'failed';
+        error = err.message?.slice(0, 500) ?? 'unknown error';
+      }
+    }
+
+    try {
       tally.found = raws.length;
 
       for (const raw of raws) {
