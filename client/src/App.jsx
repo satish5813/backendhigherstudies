@@ -51,6 +51,7 @@ const JobQueue = lazyPage(() => import('./pages/JobQueue'));
 const Applications = lazyPage(() => import('./pages/Applications'));
 const Cohorts = lazyPage(() => import('./pages/Cohorts'));
 const StudentReport = lazyPage(() => import('./pages/StudentReport'));
+const StudentResume = lazyPage(() => import('./pages/StudentResume'));
 const PublicProfile = lazyPage(() => import('./pages/PublicProfile'));
 const Directory = lazyPage(() => import('./pages/Directory'));
 const NotFound = lazyPage(() => import('./pages/NotFound'));
@@ -93,6 +94,7 @@ export default function App() {
           <Route path="admin/applications" element={<Applications />} />
           <Route path="students" element={<Cohorts />} />
           <Route path="students/:code/:regNo" element={<StudentReport />} />
+          <Route path="students/:code/:regNo/resume/:id" element={<StudentResume />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

@@ -275,6 +275,8 @@ export const cohortApi = {
   analytics: (code) => api.get(`/cohorts/${code}/analytics`),
   deleteAccount: (userId, confirm) => api.delete(`/cohorts/accounts/${userId}`, { confirm }),
   student: (code, regNo) => api.get(`/cohorts/${code}/students/${encodeURIComponent(regNo)}`),
+  // Any student's resume, for the admin print view. Logged server-side.
+  resume: (id) => api.get(`/cohorts/resumes/${id}`),
 };
 
 export const publicApi = {

@@ -1,4 +1,5 @@
 import { execute, query, queryOne } from '../config/db.js';
+import { canonicalCampus } from './campus.js';
 
 /**
  * Loads a placement cohort payload (the shape scripts/extract-cohorts.py
@@ -78,8 +79,10 @@ export async function importCohorts(payload, { dryRun = false, log = () => {} } 
     const { id: cohortId } = await queryOne(`SELECT id FROM cohorts WHERE code = ?`, [cohort.code]);
     totals.cohorts += 1;
 
-    for (const record of records) {
-      if (!record.reg_no || !record.name) { totals.skipped += 1; continue; }
+    for (const source of records) {
+      if (!source.reg_no || !source.name) { totals.skipped += 1; continue; }
+      // Campus spelled one way, whatever the sheet said.
+      const record = { ...source, campus: canonicalCampus(source.campus) };
 
       const existing = await queryOne(
         `SELECT id FROM student_records WHERE cohort_id = ? AND reg_no = ?`,

@@ -118,7 +118,7 @@ async function main() {
   console.log(`\nKL Placement Readiness roster end-to-end — ${BASE}\n`);
 
   const seed = await queryOne(
-    `SELECT sr.reg_no, c.code FROM student_records sr JOIN cohorts c ON c.id = sr.cohort_id
+    `SELECT sr.reg_no, sr.campus, c.code FROM student_records sr JOIN cohorts c ON c.id = sr.cohort_id
       WHERE sr.user_id IS NULL AND sr.reg_no REGEXP '^[0-9]+$' ORDER BY sr.id LIMIT 1`
   );
   if (!seed) {
@@ -176,6 +176,31 @@ async function main() {
     check('...so the cohort roster opens for them', r.status === 200, `${r.status}`);
     r = await call('GET', `/api/cohorts/${seed.code}/students?perPage=1`, undefined, studentToken);
     check('while a student is still refused it', r.status === 403, `${r.status}`);
+
+    /* -------------------------------------------------------- B2. follow-up */
+    console.log('\nFollow-up dashboard');
+    const ins = await execute(
+      `INSERT INTO resumes (user_id, title, template, data, ats_score) VALUES (?, 'E2E follow-up', 'ats-classic', '{}', 77)`,
+      [student.body.user.id]
+    );
+    const resumeId = ins.insertId;
+
+    r = await call('GET', `/api/cohorts/followup?campus=${encodeURIComponent(seed.campus)}`, undefined, adminToken);
+    check('the follow-up list opens for an admin', r.status === 200 && r.data?.summary?.roster >= 1, `${r.status} ${JSON.stringify(r.data?.summary)}`);
+    const me = r.data?.items?.find((i) => String(i.regNo) === String(seed.reg_no));
+    check('...and shows the roster student as "created"', me?.status === 'created', JSON.stringify(me)?.slice(0, 160));
+    check('...with their best resume and its ATS score', me?.resume?.atsScore === 77 && me?.resume?.id === Number(resumeId), JSON.stringify(me?.resume));
+    check('...and the address the portal accepts for them', me?.loginEmail === STUDENT, me?.loginEmail);
+    check('...and counts them in the summary', r.data.summary.created >= 1 && r.data.summary.withResume >= 1, JSON.stringify(r.data.summary));
+    r = await call('GET', `/api/cohorts/followup?campus=${encodeURIComponent(seed.campus)}`, undefined, studentToken);
+    check('a student is refused the follow-up list', r.status === 403, `${r.status}`);
+
+    r = await call('GET', `/api/cohorts/resumes/${resumeId}`, undefined, adminToken);
+    check('an admin can open any resume for printing', r.status === 200 && r.data?.atsScore === 77 && r.data?.owner?.id === student.body.user.id, `${r.status} ${JSON.stringify(r.data).slice(0, 120)}`);
+    r = await call('GET', `/api/cohorts/resumes/${resumeId}`, undefined, studentToken);
+    check('a student cannot open it that way', r.status === 403, `${r.status}`);
+    r = await call('GET', `/api/cohorts/resumes/999999999`, undefined, adminToken);
+    check('an unknown resume → 404', r.status === 404, `${r.status}`);
 
     /* ---------------------------------------------------------- C. import */
     console.log('\nRoster import');

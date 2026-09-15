@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import { env } from '../config/env.js';
 import { query, queryOne } from '../config/db.js';
+import { campusAliases, canonicalCampus } from '../services/campus.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { wrap, HttpError } from '../middleware/common.js';
 import { cohortSummary } from '../services/cohorts.js';
@@ -21,6 +23,136 @@ router.get('/', wrap(async (_req, res) => {
  * Admin only, and PII stays out of the payload: no mobile numbers, no dates of
  * birth, no personal email addresses.
  */
+/**
+ * GET /api/cohorts/followup?campus=Vijayawada
+ *
+ * The placement cell's chase list for one campus, in a single call: who has
+ * created a profile and who has not, whose best resume scores what, where
+ * their public profile is, and how to reach the ones who have not turned up.
+ * Contact details are included, so every read is logged exactly like the
+ * per-student report.
+ */
+router.get('/followup', requireAdmin, wrap(async (req, res) => {
+  const campus = canonicalCampus(req.query.campus || 'Vijayawada');
+  const aliases = campusAliases(campus);
+
+  const rows = await query(
+    `SELECT sr.reg_no, sr.name, sr.branch, sr.target_band, sr.readiness_index,
+            sr.mobile, sr.placement_email, sr.personal_email, sr.claimed_at,
+            c.code AS cohort,
+            u.id AS user_id, u.name AS account_name, u.slug, u.profile_public, u.onboarded, u.last_login_at,
+            r.id AS resume_id, r.title AS resume_title, r.ats_score, r.updated_at AS resume_updated_at,
+            (SELECT COUNT(*) FROM resumes r2 WHERE r2.user_id = u.id) AS resume_count
+       FROM student_records sr
+       JOIN cohorts c ON c.id = sr.cohort_id
+       LEFT JOIN users u ON u.id = sr.user_id
+       LEFT JOIN resumes r ON r.id = (
+         SELECT r3.id FROM resumes r3 WHERE r3.user_id = u.id
+          ORDER BY r3.ats_score DESC, r3.is_default DESC, r3.updated_at DESC LIMIT 1)
+      WHERE LOWER(sr.campus) IN (${aliases.map(() => '?').join(', ')})
+      ORDER BY (sr.user_id IS NULL), sr.name`,
+    aliases
+  );
+
+  const num = (v) => (v == null ? null : Number(v));
+  const now = Date.now();
+  const items = rows.map((r) => {
+    const created = r.user_id != null;
+    return {
+      regNo: r.reg_no,
+      name: r.name,
+      branch: r.branch,
+      cohort: r.cohort,
+      band: r.target_band,
+      readiness: num(r.readiness_index),
+      status: created ? 'created' : 'pending',
+      // The address KL issues, which is also the only one the portal accepts.
+      loginEmail: `${String(r.reg_no).toLowerCase()}@${env.access.studentDomain}`,
+      contact: { mobile: r.mobile, placementEmail: r.placement_email, personalEmail: r.personal_email },
+      account: created
+        ? {
+            id: Number(r.user_id),
+            name: r.account_name,
+            slug: r.slug,
+            profilePublic: Boolean(r.profile_public),
+            onboarded: Boolean(r.onboarded),
+            lastLoginAt: r.last_login_at,
+            claimedAt: r.claimed_at,
+            publicUrl: r.profile_public && r.slug ? `${env.appUrl}/u/${r.slug}` : null,
+          }
+        : null,
+      resume: r.resume_id
+        ? {
+            id: Number(r.resume_id),
+            title: r.resume_title,
+            atsScore: num(r.ats_score),
+            updatedAt: r.resume_updated_at,
+            count: Number(r.resume_count || 0),
+            // Opens the resume in the main app's admin print view.
+            printUrl: `${env.appUrl}/app/students/${r.cohort}/${encodeURIComponent(r.reg_no)}/resume/${r.resume_id}`,
+          }
+        : null,
+    };
+  });
+
+  const scored = items.filter((i) => i.resume?.atsScore != null);
+  const summary = {
+    campus,
+    roster: items.length,
+    created: items.filter((i) => i.status === 'created').length,
+    pending: items.filter((i) => i.status === 'pending').length,
+    withResume: items.filter((i) => i.resume).length,
+    publicProfiles: items.filter((i) => i.account?.publicUrl).length,
+    activeLast7Days: items.filter((i) => i.account?.lastLoginAt && now - new Date(i.account.lastLoginAt).getTime() < 7 * 86400_000).length,
+    avgAts: scored.length ? Math.round(scored.reduce((s, i) => s + i.resume.atsScore, 0) / scored.length) : null,
+  };
+
+  await logActivity(req, {
+    userId: req.user.id,
+    action: ACTIONS.PROFILE_VIEWED,
+    detail: { followup: campus, rows: items.length },
+  });
+
+  res.json({ summary, items, generatedAt: new Date().toISOString() });
+}));
+
+/**
+ * GET /api/cohorts/resumes/:id — any student's resume, for the admin print
+ * view. The PDF is produced in the browser, so the main app renders it with
+ * the same templates the student used. Logged, like every admin read of a
+ * student's material.
+ */
+router.get('/resumes/:id', requireAdmin, wrap(async (req, res) => {
+  const r = await queryOne(
+    `SELECT r.id, r.title, r.template, r.accent, r.target_role, r.data, r.ats_score, r.ats_report, r.updated_at,
+            u.id AS owner_id, u.name AS owner_name, u.email AS owner_email, u.slug AS owner_slug
+       FROM resumes r JOIN users u ON u.id = r.user_id
+      WHERE r.id = ?`,
+    [req.params.id]
+  );
+  if (!r) throw new HttpError(404, 'Resume not found.', 'not_found');
+  const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
+
+  await logActivity(req, {
+    userId: req.user.id,
+    action: ACTIONS.PROFILE_VIEWED,
+    detail: { adminViewedResume: Number(r.id), owner: Number(r.owner_id) },
+  });
+
+  res.json({
+    id: Number(r.id),
+    title: r.title,
+    template: r.template,
+    accent: r.accent,
+    targetRole: r.target_role,
+    data: parse(r.data),
+    atsScore: r.ats_score == null ? null : Number(r.ats_score),
+    atsReport: parse(r.ats_report),
+    updatedAt: r.updated_at,
+    owner: { id: Number(r.owner_id), name: r.owner_name, email: r.owner_email, slug: r.owner_slug },
+  });
+}));
+
 router.get('/:code/students', requireAdmin, wrap(async (req, res) => {
   const cohort = await queryOne(`SELECT id, code, name FROM cohorts WHERE code = ?`, [req.params.code]);
   if (!cohort) throw new HttpError(404, 'No such cohort.', 'not_found');
