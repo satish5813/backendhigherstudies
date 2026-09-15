@@ -22,7 +22,15 @@ function splitStatements(sql) {
     .filter(Boolean);
 }
 
-async function main() {
+/**
+ * Applies schema.sql and any additive column changes.
+ *
+ * Exported so the server can call it at boot. Throws rather than exiting,
+ * because a library that kills the process is useless to a caller that
+ * wants to log the failure and carry on serving what it can.
+ */
+export async function runMigrations({ quiet = false } = {}) {
+  const say = quiet ? () => {} : (...a) => console.log(...a);
   const { host, port, user, password, database } = env.db;
 
   // 1. Create the database if we are allowed to.
@@ -38,10 +46,10 @@ async function main() {
     await root.query(
       `CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
     );
-    console.log(`database \`${database}\` ready`);
+    say(`database \`${database}\` ready`);
     await root.end();
   } catch (err) {
-    console.log(`could not create \`${database}\` (${err.code || err.message}) — assuming it already exists`);
+    say(`could not create \`${database}\` (${err.code || err.message}) — assuming it already exists`);
   }
 
   // 2. apply the schema
@@ -53,11 +61,10 @@ async function main() {
     const name = statement.match(/CREATE TABLE IF NOT EXISTS (\w+)/i)?.[1] ?? statement.slice(0, 40);
     try {
       await conn.query(statement);
-      console.log(`  ok  ${name}`);
+      say(`  ok  ${name}`);
     } catch (err) {
-      console.error(`  FAIL ${name}: ${err.message}`);
       await conn.end();
-      process.exit(1);
+      throw new Error(`${name}: ${err.message}`);
     }
   }
 
@@ -145,20 +152,23 @@ async function main() {
       await conn.query(
         `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}${after ? ` AFTER \`${after}\`` : ''}`
       );
-      console.log(`  ok  ${table}.${column} added`);
+      say(`  ok  ${table}.${column} added`);
     } catch (err) {
-      console.error(`  FAIL ${table}.${column}: ${err.message}`);
       await conn.end();
-      process.exit(1);
+      throw new Error(`${table}.${column}: ${err.message}`);
     }
   }
 
   const [tables] = await conn.query('SHOW TABLES');
-  console.log(`\nmigration complete — ${tables.length} tables in \`${database}\``);
+  say(`\nmigration complete — ${tables.length} tables in \`${database}\``);
   await conn.end();
+  return tables.length;
 }
 
-main().catch((err) => {
-  console.error('migration failed:', err.message);
-  process.exit(1);
-});
+// Only when run as a script; importing this module must not start anything.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runMigrations().catch((err) => {
+    console.error('migration failed:', err.message);
+    process.exit(1);
+  });
+}

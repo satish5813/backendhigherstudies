@@ -91,6 +91,7 @@ app.get('/api/health', async (_req, res) => {
     env: env.nodeEnv,
     db,
     ...(dbError ? { dbError } : {}),
+    ...(schemaTables !== null ? { tables: schemaTables } : {}),
     mail: { configured: mail.configured, verified: mail.verified },
     uptime: Math.round(process.uptime()),
     time: new Date().toISOString(),
@@ -158,6 +159,42 @@ if (fs.existsSync(clientDist)) {
 app.use('/api', notFound);
 app.use(errorHandler);
 
+/* ----------------------------------------------------------------- schema */
+
+// How many tables the database holds, once we have looked. Surfaced on
+// /api/health so an empty database is visible without opening a terminal.
+let schemaTables = null;
+
+/**
+ * Put the schema in place if it is missing.
+ *
+ * A fresh volume starts with no tables. Every endpoint that reads one then
+ * answers 500 while /api/health cheerfully reports db:true -- the connection
+ * is genuinely fine, there is simply nothing in it to read. That combination
+ * looks like an application fault and is miserable to diagnose from outside.
+ *
+ * schema.sql is CREATE TABLE IF NOT EXISTS throughout and the column changes
+ * are applied only when absent, so this is safe on every boot. A container
+ * that can create its own schema does not depend on someone remembering to
+ * open a terminal after the first deploy.
+ *
+ * DB_AUTO_MIGRATE=false hands it back to you.
+ */
+async function ensureSchema() {
+  if (!env.db.autoMigrate) {
+    console.log('[db] DB_AUTO_MIGRATE=false — skipping schema check');
+    return;
+  }
+  try {
+    const { runMigrations } = await import('./db/migrate.js');
+    schemaTables = await runMigrations({ quiet: true });
+    console.log(`[db] schema ready — ${schemaTables} tables`);
+  } catch (err) {
+    console.error(`[db] SCHEMA SETUP FAILED: ${err.message}`);
+    console.error('[db] the API will answer 500 on anything that reads a table');
+  }
+}
+
 /* ---------------------------------------------------------------- lifecycle */
 
 const server = app.listen(env.port, () => {
@@ -167,7 +204,10 @@ const server = app.listen(env.port, () => {
   console.log(`  app    ${env.appUrl}\n`);
 
   healthCheck()
-    .then(() => console.log(`[db] connected to ${env.db.database}@${env.db.host}`))
+    .then(() => {
+      console.log(`[db] connected to ${env.db.database}@${env.db.host}`);
+      return ensureSchema();
+    })
     .catch((err) => console.error(`[db] CONNECTION FAILED: ${err.message}`));
 
   verifyMailer();

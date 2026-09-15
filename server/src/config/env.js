@@ -62,6 +62,10 @@ export const env = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'careerforge',
+    // Apply the schema at boot when it is missing. On by default: a fresh
+    // volume otherwise serves 500s from every endpoint that reads a table
+    // while health still reports db:true. Set false to manage it yourself.
+    autoMigrate: bool(process.env.DB_AUTO_MIGRATE, true),
   },
 
   jwt: {
