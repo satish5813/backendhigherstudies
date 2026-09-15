@@ -51,7 +51,7 @@ async function signIn(email, name = 'Cohort Test') {
 }
 
 async function main() {
-  console.log(`\nCareerForge cohorts end-to-end — ${BASE}\n`);
+  console.log(`\nKL Placement Readiness cohorts end-to-end — ${BASE}\n`);
 
   const [{ n: records }] = await query(`SELECT COUNT(*) AS n FROM student_records`);
   if (!records) {

@@ -52,7 +52,7 @@ async function call(method, path, body, { auth = true, raw = false } = {}) {
 }
 
 async function main() {
-  console.log(`\nCareerForge end-to-end — ${BASE}\n`);
+  console.log(`\nKL Placement Readiness end-to-end — ${BASE}\n`);
 
   /* ------------------------------------------------------------- health */
   console.log('Health');

@@ -52,7 +52,7 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isProd: (process.env.NODE_ENV || 'development') === 'production',
   port: int(process.env.PORT, 4000),
-  appName: process.env.APP_NAME || 'CareerForge',
+  appName: process.env.APP_NAME || 'KL Placement Readiness',
   appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),
   apiUrl: (process.env.API_URL || 'http://localhost:4000').replace(/\/$/, ''),
 
@@ -90,7 +90,7 @@ export const env = {
     secure: bool(process.env.SMTP_SECURE, true),
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
-    fromName: process.env.MAIL_FROM_NAME || process.env.APP_NAME || 'CareerForge',
+    fromName: process.env.MAIL_FROM_NAME || process.env.APP_NAME || 'KL Placement Readiness',
     fromAddress: process.env.MAIL_FROM_ADDRESS || process.env.SMTP_USER || 'no-reply@localhost',
     devEcho: bool(process.env.MAIL_DEV_ECHO, true),
   },

@@ -110,7 +110,7 @@ export default function ProfileEditor() {
         <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-5 py-4">
           <IconSparkles size={19} className="mt-0.5 shrink-0 text-brand-600" />
           <div>
-            <p className="text-sm font-bold text-brand-900">Welcome to CareerForge</p>
+            <p className="text-sm font-bold text-brand-900">Welcome to KL Placement Readiness</p>
             <p className="mt-0.5 text-sm leading-relaxed text-brand-800/80">
               Start with your personal details, then add education, skills and at least two projects.
               That is enough to generate a strong ATS resume.

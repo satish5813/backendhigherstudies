@@ -110,7 +110,7 @@ export default function Login() {
     try {
       const res = await authApi.verifyOtp(email, code, name.trim() || undefined);
       signIn(res);
-      toast.success(res.isNewUser ? 'Account created. Welcome to CareerForge.' : 'Signed in.');
+      toast.success(res.isNewUser ? 'Account created. Welcome.' : 'Signed in.');
       navigate(res.isNewUser ? '/app/profile?onboarding=1' : redirectTo, { replace: true });
     } catch (err) {
       setError(err.message);
@@ -185,7 +185,7 @@ export default function Login() {
               <span className="block text-white/50">Every application.</span>
             </h2>
             <p className="mt-5 text-[15px] leading-relaxed text-white/60">
-              Fill in your details once and CareerForge keeps your ATS resume, your public profile and
+              Fill in your details once and we keep your ATS resume, your public profile and
               your job alerts in sync — automatically.
             </p>
 

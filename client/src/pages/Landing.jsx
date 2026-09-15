@@ -11,7 +11,7 @@ const FEATURES = [
   {
     icon: IconDoc,
     title: 'ATS-ready resume builder',
-    body: 'Five parser-safe templates. Your profile flows straight into the document — no retyping, no broken layouts, no columns that scramble in a parser.',
+    body: 'Twenty-one templates, each scored for parser safety. Your profile flows straight into the document — no retyping, no broken layouts, no columns that scramble in a parser.',
   },
   {
     icon: IconTarget,
@@ -139,21 +139,21 @@ export default function Landing() {
         <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-10 lg:px-8 lg:pb-32 lg:pt-24">
           <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
-              <IconSparkles size={14} className="text-sky-300" />
-              Built for final-year students chasing their first offer
+              <IconSparkles size={14} className="text-brand-300" />
+              Koneru Lakshmaiah Education Foundation · Placement Cell
             </span>
 
-            <h1 className="mt-6 text-[2.6rem] font-black leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl lg:text-[4.1rem]">
-              Your career profile,
-              <span className="block bg-gradient-to-r from-sky-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent">
-                recruiter ready.
+            <h1 className="mt-6 font-display text-[2.6rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl lg:text-[4.1rem]">
+              Ready before
+              <span className="block bg-gradient-to-r from-brand-300 via-brand-200 to-white bg-clip-text text-transparent">
+                the drive opens.
               </span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/70">
-              Fill your details once. CareerForge turns them into an ATS-scored resume, a shareable
-              portfolio page with your live LeetCode and GitHub stats, and a daily feed of jobs matched
-              to what you can actually do.
+              Fill your details in once. KL Placement Readiness turns them into an ATS-scored resume,
+              a recruiter-ready profile with your live LeetCode and GitHub stats, and a daily feed of
+              openings the placement cell has approved for you.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -180,7 +180,7 @@ export default function Landing() {
 
           {/* floating resume + score card */}
           <div className="relative animate-fade-up [animation-delay:150ms]">
-            <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-tr from-brand-500/25 to-sky-400/20 blur-3xl" />
+            <div className="absolute -inset-6 rounded-[2rem] bg-gradient-to-tr from-brand-500/30 to-brand-700/20 blur-3xl" />
 
             <div className="relative rounded-2xl bg-white p-6 shadow-lift sm:p-7">
               <div className="border-b border-ink-200 pb-4">
@@ -245,9 +245,9 @@ export default function Landing() {
           <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-white/10 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
             {[
               ['8', 'ATS dimensions scored'],
-              ['5', 'Parser-safe templates'],
-              ['3', 'Coding platforms synced'],
-              ['Daily', 'Matched job digests'],
+              ['21', 'Resume templates'],
+              ['656', 'Students on the roster'],
+              ['Daily', 'Approved job digests'],
             ].map(([big, small], i) => (
               <div key={small} className={`px-5 py-6 ${i < 2 ? 'border-b border-white/10 lg:border-b-0' : ''}`}>
                 <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{big}</p>
@@ -296,7 +296,7 @@ export default function Landing() {
               Know why you were filtered out
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-ink-500">
-              Most resumes never reach a human. CareerForge models what the machine checks — parseable
+              Most resumes never reach a human. We model what the machine checks — parseable
               structure on one side, keyword and evidence coverage on the other — and tells you exactly
               which line to rewrite.
             </p>
@@ -333,7 +333,7 @@ export default function Landing() {
             <div className="mt-5 space-y-3.5">
               {ATS_DEMO.map(({ label, score: s, max }) => {
                 const pctv = (s / max) * 100;
-                const tone = pctv >= 90 ? 'bg-emerald-500' : pctv >= 65 ? 'bg-sky-500' : 'bg-amber-500';
+                const tone = pctv >= 90 ? 'bg-emerald-500' : pctv >= 65 ? 'bg-brand-500' : 'bg-amber-500';
                 return (
                   <div key={label}>
                     <div className="mb-1.5 flex items-baseline justify-between">
@@ -385,7 +385,7 @@ export default function Landing() {
           <div className="order-2 lg:order-1">
             <div className="rounded-2xl border border-ink-200 bg-gradient-to-b from-ink-50 to-white p-6 shadow-card">
               <div className="flex items-start gap-4">
-                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 text-xl font-black text-white">
+                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 text-xl font-black text-white">
                   AS
                 </div>
                 <div className="min-w-0">
@@ -465,7 +465,7 @@ export default function Landing() {
             <Link to="/students" className="transition hover:text-ink-900">Students</Link>
             <Link to="/login" className="font-semibold text-brand-600 transition hover:text-brand-700">Sign in</Link>
           </div>
-          <p className="text-xs text-ink-400">© {new Date().getFullYear()} CareerForge</p>
+          <p className="text-xs text-ink-400">© {new Date().getFullYear()} Koneru Lakshmaiah Education Foundation</p>
         </div>
       </footer>
     </div>

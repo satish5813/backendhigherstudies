@@ -65,7 +65,7 @@ export async function fetchLeetCode(username) {
         headers: {
           'Content-Type': 'application/json',
           Referer: `https://leetcode.com/u/${handle}/`,
-          'User-Agent': 'CareerForge/1.0 (student profile sync)',
+          'User-Agent': 'KLPlacementReadiness/1.0 (student profile sync)',
         },
         body: JSON.stringify({ query, variables: { username: handle } }),
       });
@@ -115,7 +115,7 @@ export async function fetchGitHub(username) {
   try {
     const headers = {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'CareerForge/1.0',
+      'User-Agent': 'KLPlacementReadiness/1.0',
       ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
     };
     const res = await fetchWithTimeout(`https://api.github.com/users/${encodeURIComponent(handle)}`, { headers });
@@ -173,7 +173,7 @@ export async function fetchCodeChef(username) {
   if (!handle) return { status: 'unlinked' };
   try {
     const res = await fetchWithTimeout(`https://www.codechef.com/users/${encodeURIComponent(handle)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CareerForge/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; KLPlacementReadiness/1.0)' },
     });
     if (res.status === 404) return { status: 'not_found' };
     if (!res.ok) return { status: 'error', error: `CodeChef returned ${res.status}` };

@@ -67,7 +67,7 @@ export default function PublicProfile() {
         <div className="absolute inset-0 bg-mesh opacity-80" />
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-            <div className="grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-brand-500 to-sky-500 text-3xl font-black text-white shadow-lift ring-4 ring-white/10">
+            <div className="grid h-28 w-28 shrink-0 place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 text-3xl font-black text-white shadow-lift ring-4 ring-white/10">
               {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
             </div>
 

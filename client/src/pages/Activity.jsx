@@ -40,7 +40,7 @@ export default function Activity() {
       </header>
 
       {!data?.items?.length ? (
-        <EmptyState icon={IconClock} title="Nothing logged yet" message="Your actions will appear here as you use CareerForge." />
+        <EmptyState icon={IconClock} title="Nothing logged yet" message="Your actions will appear here as you use the platform." />
       ) : (
         <>
           <div className="card divide-y divide-ink-100">

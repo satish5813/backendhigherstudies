@@ -57,7 +57,7 @@ function fabricated(source, output) {
 }
 
 async function main() {
-  console.log(`\nCareerForge AI end-to-end — ${BASE}\n`);
+  console.log(`\nKL Placement Readiness AI end-to-end — ${BASE}\n`);
 
   if (!env.ai.key) {
     console.log('  GEMINI_API_KEY not set — skipping (this is not a failure).\n');

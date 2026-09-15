@@ -22,7 +22,7 @@
  */
 import { env } from '../config/env.js';
 
-const UA = 'CareerForge/1.0 (KL University placement portal)';
+const UA = 'KLPlacementReadiness/1.0 (KL University placement portal)';
 
 // Boards fetched at once. Enough to keep the sweep quick, few enough that we
 // are not hammering one host from a single university IP.

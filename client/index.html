@@ -2,15 +2,42 @@
 <html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1020" />
-    <meta name="description" content="CareerForge — build an ATS-ready resume, showcase your projects and coding profile, and get daily job alerts." />
-    <title>CareerForge — Your career profile, recruiter ready</title>
+    <!-- viewport-fit=cover so the layout reaches under the notch and the home
+         indicator on phones, which is where most students open this. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#b01c25" />
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="KL Placement Readiness — the Koneru Lakshmaiah Education Foundation placement platform. Build an ATS-scored resume, publish a recruiter-ready profile, and track every application in one place."
+    />
+    <title>KL Placement Readiness — KL University</title>
+
+    <!-- The seal doubles as the favicon once it is dropped into public/brand/.
+         The SVG is tried first; browsers fall back to the PNG on their own. -->
+    <link rel="icon" type="image/svg+xml" href="/brand/kl-seal.svg" />
+    <link rel="icon" type="image/png" href="/brand/kl-seal.png" />
+    <link rel="apple-touch-icon" href="/brand/kl-seal.png" />
+
+    <meta property="og:title" content="KL Placement Readiness" />
+    <meta property="og:site_name" content="KL University" />
+    <meta
+      property="og:description"
+      content="Build an ATS-scored resume, publish a recruiter-ready profile, and track every application."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/brand/kl-lockup.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <!-- Plus Jakarta Sans for headings and the wordmark; Inter for everything
+         read at length, because it is the more comfortable text face. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body class="h-full bg-slate-50 antialiased">
+  <body class="h-full bg-ink-50 antialiased">
     <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

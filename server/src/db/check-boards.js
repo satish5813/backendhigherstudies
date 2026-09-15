@@ -15,7 +15,7 @@
  */
 import { BOARDS } from '../services/jobSources.js';
 
-const UA = 'CareerForge/1.0 (KL University placement portal)';
+const UA = 'KLPlacementReadiness/1.0 (KL University placement portal)';
 
 const URLS = {
   greenhouse: (t) => `https://boards-api.greenhouse.io/v1/boards/${t}/jobs?content=false`,

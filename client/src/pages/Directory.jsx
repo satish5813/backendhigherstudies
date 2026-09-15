@@ -40,7 +40,7 @@ export default function Directory() {
         <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Student directory</h1>
           <p className="mt-2.5 max-w-xl text-[15px] leading-relaxed text-white/65">
-            Public profiles from students building their placement portfolios on CareerForge.
+            Public profiles from KL University students, published by the students themselves.
           </p>
 
           <form onSubmit={search} className="mt-7 flex max-w-xl gap-2">
@@ -84,7 +84,7 @@ export default function Directory() {
                     className="card group p-5 transition hover:-translate-y-1 hover:border-brand-200 hover:shadow-lift"
                   >
                     <div className="flex items-start gap-3.5">
-                      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 text-sm font-black text-white">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 text-sm font-black text-white">
                         {s.avatarUrl ? <img src={s.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
                       </div>
                       <div className="min-w-0 flex-1">
