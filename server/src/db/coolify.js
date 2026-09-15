@@ -132,6 +132,37 @@ async function apply(uuid) {
   else console.log('  Not deployed. Coolify applies variables on the next deploy: add --deploy, or run `deploy`.\n');
 }
 
+/**
+ * Create an application from a public repository with a Dockerfile.
+ *
+ *   node server/src/db/coolify.js create --name klef-frontend \
+ *     --server <server-uuid> --project <project-uuid> --env <environment-uuid> \
+ *     --repo https://github.com/satish5813/KLEFHigherPlacement --branch main \
+ *     --port 80 --domain https://placement.187.127.135.148.sslip.io
+ */
+async function create() {
+  const need = (n) => { const v = option(n); if (!v) { console.error(`\n  --${n} is required\n`); process.exit(1); } return v; };
+  const body = {
+    name: need('name'),
+    server_uuid: need('server'),
+    project_uuid: need('project'),
+    environment_uuid: need('env'),
+    git_repository: need('repo'),
+    git_branch: option('branch') || 'main',
+    build_pack: 'dockerfile',
+    ports_exposes: option('port') || '80',
+    instant_deploy: false,
+    ...(option('domain') ? { domains: option('domain') } : {}),
+  };
+  const r = await api('POST', '/applications/public', body);
+  const uuid = r?.uuid;
+  console.log(`\n  created ${body.name}: ${uuid}${option('domain') ? `  at ${option('domain')}` : ''}\n`);
+  if (!uuid) { console.log(JSON.stringify(r).slice(0, 300)); return; }
+  if (flag('deploy')) await deploy(uuid);
+  else console.log('  Not deployed yet. Run: node server/src/db/coolify.js deploy ' + uuid + '\n');
+  return uuid;
+}
+
 async function deploy(uuid) {
   const r = await api('GET', `/deploy?uuid=${encodeURIComponent(uuid)}&force=true`);
   const d = r?.deployments?.[0];
@@ -202,6 +233,7 @@ async function watch(depUuid) {
     if (cmd === 'list') await list();
     else if (cmd === 'show' && arg) await show(arg);
     else if (cmd === 'apply' && arg) await apply(arg);
+    else if (cmd === 'create') await create();
     else if (cmd === 'deploy' && arg) await deploy(arg);
     else if (cmd === 'watch' && arg) await watch(arg);
     else {
