@@ -1,3 +1,16 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Anchored to this file, not to the current working directory. Tailwind
+// resolves `content` globs against the CWD, so building from the repository
+// root instead of from client/ matched no files at all: the build still
+// succeeded and emitted a 7 kB stylesheet with the whole design system
+// missing. A silently empty stylesheet is a far worse failure than an error,
+// so take the guesswork out. Forward slashes because the glob matcher wants
+// them even on Windows.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const from = (glob) => path.join(here, glob).split(path.sep).join(String.fromCharCode(47));
+
 /** @type {import('tailwindcss').Config} */
 
 /**
@@ -14,7 +27,7 @@
  * they sit with the red rather than fighting it.
  */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: [from('index.html'), from('src/**/*.{js,jsx}')],
   theme: {
     extend: {
       fontFamily: {
