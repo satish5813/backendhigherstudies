@@ -33,7 +33,10 @@ const opt = (name, fallback = null) => {
 };
 
 const DOMAIN = opt('domain');
-const SMTP_USER = opt('smtp-user', 'officeskilling@kluniversity.in');
+const SMTP_USER = opt('smtp-user', 'engg.skilldevelopment@kluniversity.in');
+// Sign in regardless of the roster and hold the admin role from the first
+// sign-in. Comma-separated; override with --admin-emails.
+const ADMIN_EMAILS = opt('admin-emails', 'drsatishthatavarti@kluniversity.in,officeskilling@kluniversity.in');
 
 /**
  * Coolify hands you the database as one `mysql://user:pass@host:port/name`
@@ -89,6 +92,7 @@ function loadSecrets() {
   for (const [key, bytes] of [
     ['JWT_SECRET', 48], ['JWT_REFRESH_SECRET', 48],
     ['DB_PASSWORD', 24], ['DB_ROOT_PASSWORD', 24],
+    ['ROSTER_IMPORT_TOKEN', 32],
   ]) {
     if (!out[key]) { out[key] = gen(bytes); created = true; }
   }
@@ -187,6 +191,20 @@ APIFY_JOB_ACTOR=
 
 # --- directory ------------------------------------------------------------
 DIRECTORY_LIST_ROSTER=true
+
+# --- who may sign in ------------------------------------------------------
+# Only registration-number addresses on the placement roster can create an
+# account. Everyone else is refused before a code is sent.
+ROSTER_ONLY_SIGNUP=true
+STUDENT_EMAIL_DOMAIN=kluniversity.in
+# These sign in regardless of the roster and are administrators from their
+# first sign-in, so no one has to run make-admin.js on the server.
+ADMIN_EMAILS=${ADMIN_EMAILS}
+# Lets the roster be loaded before any administrator exists:
+#   curl -H "Authorization: Bearer <token>" -H "content-type: application/json" \\
+#        --data-binary @cohorts.json https://<host>/api/cohorts/import
+# Clear it once the roster is in; an administrator's session works thereafter.
+ROSTER_IMPORT_TOKEN=${s.ROSTER_IMPORT_TOKEN}
 
 # --- misc -----------------------------------------------------------------
 TZ=Asia/Kolkata

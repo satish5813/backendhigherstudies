@@ -9,7 +9,8 @@ import { checkSendQuota, createAndSendOtp, verifyOtp } from '../services/otp.js'
 import { mailerStatus, sendMail } from '../services/mailer.js';
 import { welcomeEmail } from '../templates/emails.js';
 import { uniqueSlug } from '../utils/slug.js';
-import { autoClaimByEmail } from '../services/cohorts.js';
+import { autoClaimByEmail, claimByRegNo } from '../services/cohorts.js';
+import { isAdminEmail, regNoFromEmail, rosterAccess } from '../services/roster.js';
 import { ACTIONS, clientIp, logActivity, userAgent } from '../utils/activity.js';
 import {
   REFRESH_COOKIE,
@@ -70,6 +71,8 @@ router.get(
         mxCheck: env.emailPolicy.validateMx,
         allowedDomains: env.emailPolicy.allowedDomains,
       },
+      signup: { rosterOnly: env.access.rosterOnly, studentDomain: env.access.studentDomain },
+      appUrl: env.appUrl,
       ready: mail.configured && mail.verified !== false,
     });
   })
@@ -86,6 +89,9 @@ router.post(
   wrap(async (req, res) => {
     const check = await validateEmail(req.body.email);
     if (!check.ok) return res.json({ valid: false, message: check.reason, suggestion: check.suggestion ?? null });
+
+    const access = await rosterAccess(check.email);
+    if (!access.allowed) return res.json({ valid: false, message: access.message, suggestion: null });
 
     const existing = await queryOne(`SELECT id, name FROM users WHERE email = ?`, [check.email]);
     res.json({
@@ -116,6 +122,14 @@ router.post(
       });
     }
     const email = check.email;
+
+    // The roster is the sign-up list. Refuse here, before a code is created or
+    // a quota consumed, so a stranger learns nothing and burns nothing.
+    const access = await rosterAccess(email);
+    if (!access.allowed) {
+      await logActivity(req, { email, action: ACTIONS.OTP_FAILED, detail: { reason: 'not_on_roster' } });
+      return res.status(403).json({ error: 'not_on_roster', message: access.message });
+    }
 
     const quota = await checkSendQuota(email);
     if (!quota.ok) {
@@ -178,6 +192,9 @@ router.post(
     if (!check.ok) return res.status(422).json({ error: 'invalid_email', message: check.reason });
     const email = check.email;
 
+    const access = await rosterAccess(email);
+    if (!access.allowed) return res.status(403).json({ error: 'not_on_roster', message: access.message });
+
     const result = await verifyOtp({ email, code: req.body.code });
     if (!result.ok) {
       await logActivity(req, { email, action: ACTIONS.OTP_FAILED, detail: { reason: result.message } });
@@ -191,10 +208,12 @@ router.post(
     if (!user) {
       const name = req.body.name?.trim() || null;
       const slug = await uniqueSlug(name || email.split('@')[0]);
+      // ADMIN_EMAILS hold the admin role from their very first sign-in.
+      const role = isAdminEmail(email) ? 'admin' : 'student';
       const ins = await execute(
-        `INSERT INTO users (email, name, slug, email_verified, last_login_at)
-         VALUES (?, ?, ?, 1, NOW())`,
-        [email, name, slug]
+        `INSERT INTO users (email, name, slug, role, email_verified, last_login_at)
+         VALUES (?, ?, ?, ?, 1, NOW())`,
+        [email, name, slug, role]
       );
       // Everyone gets a daily alert row so the toggle has something to flip.
       await execute(`INSERT INTO job_alerts (user_id, active, frequency) VALUES (?, 1, 'daily')`, [ins.insertId]);
@@ -208,6 +227,15 @@ router.post(
       // and seed the profile so the student is not retyping known data.
       try {
         claim = await autoClaimByEmail(user.id, email);
+        // KL issues <registration number>@kluniversity.in, so the address
+        // itself names the record when neither email on file matches.
+        if (!claim.claimed) {
+          const regNo = regNoFromEmail(email);
+          if (regNo) {
+            const byReg = await claimByRegNo(user.id, regNo);
+            if (byReg.ok) claim = { claimed: true, cohort: byReg.cohort, regNo: byReg.regNo, filled: byReg.filled };
+          }
+        }
         if (claim.claimed) {
           user = await queryOne(`SELECT * FROM users WHERE id = ?`, [user.id]);
         }
@@ -216,6 +244,12 @@ router.post(
       }
     } else {
       await execute(`UPDATE users SET email_verified = 1, last_login_at = NOW() WHERE id = ?`, [user.id]);
+      // An address added to ADMIN_EMAILS after the account existed is promoted
+      // on its next sign-in, so make-admin.js is never required.
+      if (user.role !== 'admin' && isAdminEmail(email)) {
+        await execute(`UPDATE users SET role = 'admin' WHERE id = ?`, [user.id]);
+        user = await queryOne(`SELECT * FROM users WHERE id = ?`, [user.id]);
+      }
     }
 
     const accessToken = signAccessToken(user);

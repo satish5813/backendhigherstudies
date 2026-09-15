@@ -238,7 +238,7 @@ export default function Login() {
                       ? emailCheck.exists
                         ? `Welcome back${emailCheck.name ? ', ' + emailCheck.name.split(' ')[0] : ''} — we'll email you a sign-in code.`
                         : "New here? We'll email a code to confirm this address."
-                      : 'Use your college or personal email — it becomes your login.'
+                      : 'Use your KL University address — your registration number @kluniversity.in.'
                   }
                 >
                   <div className="relative">
@@ -250,7 +250,7 @@ export default function Login() {
                       autoFocus
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                      placeholder="you@college.edu"
+                      placeholder="2300032652@kluniversity.in"
                       className={`input pl-10 pr-10 ${error || emailCheck?.valid === false ? 'input-error' : ''} ${
                         emailCheck?.valid ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500/10' : ''
                       }`}

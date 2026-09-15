@@ -23,6 +23,7 @@ import jobRoutes from './routes/jobs.js';
 import meRoutes from './routes/me.js';
 import publicRoutes from './routes/publicProfile.js';
 import cohortRoutes from './routes/cohorts.js';
+import cohortImportRoutes from './routes/cohortImport.js';
 import aiRoutes from './routes/ai.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -41,7 +42,11 @@ app.use(
 );
 app.use(compression());
 app.use(cookieParser());
-app.use(express.json({ limit: '1mb' }));
+// 1 MB is generous for every API call but one: the placement roster is ~1.3 MB
+// of JSON, and its route carries its own parser and limit. Parsing it here
+// first would reject it with a 413 before that route ever saw it.
+const jsonBody = express.json({ limit: '1mb' });
+app.use((req, res, next) => (req.path === '/api/cohorts/import' ? next() : jsonBody(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 
@@ -106,6 +111,9 @@ app.use('/api/resumes', apiLimiter, resumeRoutes);
 app.use('/api/coding', apiLimiter, codingRoutes);
 app.use('/api/jobs', apiLimiter, jobRoutes);
 app.use('/api/me', apiLimiter, meRoutes);
+// The roster import has its own guard (an admin session, or the bootstrap
+// token) and its own body limit, so it sits in front of the session-only router.
+app.use('/api/cohorts/import', apiLimiter, cohortImportRoutes);
 app.use('/api/cohorts', apiLimiter, cohortRoutes);
 app.use('/api/ai', apiLimiter, aiRoutes);
 app.use('/api/u', publicRoutes);

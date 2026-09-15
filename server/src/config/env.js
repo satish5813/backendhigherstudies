@@ -104,6 +104,21 @@ export const env = {
     allowedDomains: list(process.env.ALLOWED_EMAIL_DOMAINS),
   },
 
+  access: {
+    // Only addresses on the placement roster may create an account: the local
+    // part must be a registration number we hold, on STUDENT_EMAIL_DOMAIN.
+    // Off by default so the test suites can create arbitrary accounts; set
+    // true in production. See services/roster.js.
+    rosterOnly: bool(process.env.ROSTER_ONLY_SIGNUP, false),
+    studentDomain: (process.env.STUDENT_EMAIL_DOMAIN || 'kluniversity.in').trim().toLowerCase(),
+    // Sign in regardless of the roster and hold the admin role from the first
+    // sign-in. The only way to have a first administrator without a shell.
+    adminEmails: list(process.env.ADMIN_EMAILS),
+    // Bearer token for POST /api/cohorts/import, so the roster can be loaded
+    // over HTTPS before any administrator exists. Empty closes that door.
+    importToken: process.env.ROSTER_IMPORT_TOKEN || '',
+  },
+
   directory: {
     // List enrolled students who have not published a profile yet, with name,
     // branch, campus and registration number only. The institution decides;

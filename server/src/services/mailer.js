@@ -3,6 +3,9 @@ import { env } from '../config/env.js';
 
 let transporter = null;
 let verified = null;
+// Why the last verification failed, in plain words. Reported by mailerStatus()
+// so a deployment can say what is wrong with mail without anyone reading logs.
+let lastError = null;
 
 function getTransporter() {
   if (transporter) return transporter;
@@ -91,19 +94,26 @@ export async function verifyMailer() {
   try {
     await tx.verify();
     verified = true;
+    lastError = null;
     console.log(`[mail] SMTP ready: ${env.mail.user || '(no auth)'}@${env.mail.host}:${env.mail.port}`);
     return true;
   } catch (err) {
     verified = false;
+    lastError = explainSmtpError(err);
     console.error(`[mail] SMTP verification FAILED: ${err.message}`);
-    console.error(`[mail] ${explainSmtpError(err)}`);
+    console.error(`[mail] ${lastError}`);
     console.error('[mail] check SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS in .env');
     return false;
   }
 }
 
 export function mailerStatus() {
-  return { configured: Boolean(env.mail.host), verified, devEcho: env.mail.devEcho && !env.isProd };
+  return {
+    configured: Boolean(env.mail.host),
+    verified,
+    devEcho: env.mail.devEcho && !env.isProd,
+    ...(verified === false && lastError ? { error: lastError } : {}),
+  };
 }
 
 /**

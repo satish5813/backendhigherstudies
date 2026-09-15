@@ -98,10 +98,22 @@ async function main() {
   }
   ok('SMTP host configured', Boolean(mail.host), 'no SMTP host — no student will receive a code');
 
-  if (/localhost|127\.0\.0\.1/.test(env.appUrl)) {
-    caution('APP_URL still points at localhost', `${env.appUrl} — every email link will be unreachable`);
+  // Ask the deployment for its own APP_URL. Reading the local env here reports
+  // this machine's value against a remote target, which is simply wrong.
+  const appUrl = diag.data?.appUrl || env.appUrl;
+  if (/localhost|127\.0\.0\.1/.test(appUrl)) {
+    caution('APP_URL still points at localhost', `${appUrl} — every email link will be unreachable`);
   } else {
-    ok(`APP_URL is a real address (${env.appUrl})`, true);
+    ok(`APP_URL is a real address (${appUrl})`, true);
+  }
+
+  if (mail.error) caution('SMTP verification failed', mail.error);
+
+  const remote = !/localhost|127\.0\.0\.1/.test(BASE);
+  if (remote && diag.data?.signup && !diag.data.signup.rosterOnly) {
+    caution('ROSTER_ONLY_SIGNUP is off', 'anyone with any email address can create an account');
+  } else if (diag.data?.signup?.rosterOnly) {
+    ok(`sign-up limited to the roster (@${diag.data.signup.studentDomain})`, true);
   }
 
   /* ----------------------------------------------------------- public reads */
