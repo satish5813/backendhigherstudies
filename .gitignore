@@ -15,3 +15,8 @@ coverage/
 
 # Application-proof screenshots. Student PII — never versioned.
 server/private/
+
+# Student personal data: names, mobile numbers, dates of birth, gender,
+# personal emails, CGPAs for 656 real people. Read from disk by
+# import-cohorts.js; it must never enter a repository.
+server/src/db/data/
