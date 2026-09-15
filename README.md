@@ -377,10 +377,101 @@ so a student can confirm mail reaches them.
 
 ---
 
+## Sourced jobs, moderation and applications
+
+A nightly sweep pulls openings from public job-board APIs, keeps the Indian ones
+paying at or above `JOB_MIN_CTC` (default 20 LPA), and queues them for a
+placement officer. **Nothing reaches a student until it is approved.** Every
+sourced row lands as `status = 'pending'`, and `status = 'approved'` is the
+single condition the student board, the alert matcher and the apply endpoint all
+check.
+
+### Where the jobs come from
+
+| Source | Credentials | Notes |
+| --- | --- | --- |
+| Greenhouse | none | Official public board JSON. 17 verified tokens. |
+| Lever | none | Official public board JSON. 5 verified tokens. |
+| Ashby | none | Official public board JSON. 3 verified tokens. |
+| Adzuna | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Licensed aggregator with real Indian salary data. |
+| Apify | `APIFY_TOKEN`, `APIFY_JOB_ACTOR` | A scraping actor, for portals with no API. |
+
+The first three need no keys and no scraping — they are the endpoints the
+companies' own careers pages call. A source with no credentials reports itself
+disabled in the admin panel, naming exactly what it needs, rather than failing.
+
+Board tokens drift. Companies rename them, move ATS, or close their board, and a
+dead token is silent — it just returns nothing. Check them with:
+
+```bash
+node server/src/db/check-boards.js
+node server/src/db/check-boards.js --try razorpay,phonepe   # test candidates first
+```
+
+Guessing a token from a company name mostly fails: `atlassian`, `freshworks` and
+`swiggy` are all 404s. Find the real one in the careers URL
+(`boards.greenhouse.io/<token>`) and confirm it before adding it to `BOARDS` in
+`server/src/services/jobSources.js`.
+
+### What gets filtered out
+
+`normalise()` in `jobIngest.js` drops a posting when it has no apply URL, is not
+in India, is not a role this campus places into (payroll, sales, recruiting,
+physical security), or pays below the floor. Of ~5,500 postings seen in a sweep,
+roughly 2% survive.
+
+### The package number
+
+Most Indian listings publish no salary. `parseCtc()` reads one out of the text
+when it is there (`₹25-40 LPA`, `1.2 cr`, `$150,000 - $190,000`); otherwise
+`estimateCtc()` infers a band from the job title.
+
+An inferred number is **never presented as a published one**. It is stored as
+`ctc_source = 'estimated'` and shown with an "estimated from the job title" chip
+in the admin queue. A student choosing where to spend an afternoon applying
+deserves to know which is which. An officer who knows the real band can correct
+it and mark it `listed` before approving.
+
+Seniority order matters and is pinned by tests: `Staff Software Engineer` must
+not fall through to the generic engineer band, or a 90 LPA role is advertised
+at 18.
+
+### Applications and proof
+
+A student marks an opening applied and can attach the confirmation screenshot.
+That is what turns a self-reported count into evidence, and it is what the
+placement cell sees in **Applications** — per-job counts, per-student activity,
+and the proof rate.
+
+Screenshots contain names, personal emails and application references, so unlike
+profile photos they are **not** written to the public `/uploads` tree. They live
+in `server/private/proofs/` (git-ignored, not served statically) and reach the
+browser only through `GET /api/jobs/applications/:id/proof`, which requires the
+owner or an admin. They are re-encoded through sharp, which caps the dimensions
+and strips EXIF — a phone screenshot can carry a GPS fix.
+
+### Admin routes
+
+```
+GET   /api/jobs/admin/queue?status=pending    the moderation queue
+GET   /api/jobs/admin/sources                 which feeds are live, and last run
+POST  /api/jobs/admin/approve  { ids, note }  publish to students (bulk)
+POST  /api/jobs/admin/reject   { ids, note }  keep the row so it is not re-queued
+PATCH /api/jobs/admin/:id                     correct a package before approving
+POST  /api/jobs/admin/ingest                  run the sweep now
+GET   /api/jobs/admin/applications            who applied where, with proof
+```
+
+Approve and reject are bulk by design: a morning's queue is often 200 rows, and
+an officer who has to click through each one stops using the feature by
+Wednesday.
+
+---
+
 ## Tests
 
 ```bash
-node server/src/db/smoke.js       # 43 checks: ATS scoring, email validation,
+node server/src/db/smoke.js       # 65 checks: ATS scoring, email validation,
                                   # resume shaping, handle parsing, job matching,
                                   # template penalties. No database needed.
 
@@ -390,7 +481,16 @@ node server/src/db/e2e.js         # terminal 2 — 114 HTTP checks: OTP lifecycl
                                   # isolation, ATS scoring, alerts, account deletion.
 node server/src/db/e2e-cohorts.js # 37 checks: claiming, readiness, admin guards,
                                   # and that PII never reaches a public endpoint.
+node server/src/db/e2e-jobs.js    # 68 checks: salary parsing, seniority bands,
+                                  # the role filter, the moderation gate, applying,
+                                  # proof upload and who can open it.
+node server/src/db/e2e-ai.js      # 22 checks: the AI endpoints and their
+                                  # anti-fabrication guardrails.
 ```
+
+**306 checks across the five suites.** A network check lives in
+`check-boards.js` rather than the suites, so a company renaming its job board
+never fails the build.
 
 `e2e.js` needs `MAIL_DEV_ECHO=true` and `NODE_ENV=development` to read back the
 code. It creates a throwaway account and deletes it at the end. Point it at the
