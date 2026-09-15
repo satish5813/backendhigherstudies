@@ -25,11 +25,13 @@ export default {
         resume: ['Calibri', 'Carlito', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
       colors: {
-        // KL crimson. 600 is the wordmark red; 700 the deeper seal lettering.
+        // KL crimson, sampled from the seal artwork itself: #a41c24 is the
+        // dominant red in the official file, so 600 is the real institutional
+        // colour rather than an approximation of it.
         brand: {
-          50: '#fdf3f4', 100: '#fbe4e6', 200: '#f6cdd1', 300: '#eda6ad',
-          400: '#e17681', 500: '#d04a58', 600: '#b01c25', 700: '#961920',
-          800: '#7d181e', 900: '#6a181d', 950: '#3a0a0d',
+          50: '#fef2f3', 100: '#fde3e5', 200: '#fbcbcf', 300: '#f7a5ab',
+          400: '#ef7480', 500: '#dc4450', 600: '#a41c24', 700: '#8a1820',
+          800: '#74171d', 900: '#62171c', 950: '#36080b',
         },
         // Warm-leaning slate so the neutrals sit with crimson.
         ink: {

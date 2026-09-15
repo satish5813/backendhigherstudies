@@ -1,5 +1,10 @@
 # Brand assets
 
+**Installed.** `kl-lockup.png` and `kl-seal.png` are the official KL artwork,
+trimmed and knocked transparent so they sit on any surface. Replace them with
+SVG (`kl-lockup.svg` / `kl-seal.svg`) whenever the vector files are to hand —
+those are tried first and stay sharp at favicon size.
+
 Drop the two official KL marks in this folder, with these exact filenames. The
 app looks for them by name and falls back to a typographic monogram until they
 are here, so nothing breaks in the meantime — it just is not the real logo yet.
@@ -14,17 +19,11 @@ picked up first and stay sharp at any size, which matters for the seal's fine
 line work. PNG should be at least 1200px wide on the long edge, with a
 transparent background.
 
-## Why they are not committed already
-
-These are the university's assets, not mine to generate. A hand-drawn imitation
-of an official seal would be wrong in the details and worse than an honest
-placeholder — so the code is wired and waiting rather than approximating it.
-
 ## Colours taken from the mark
 
 ```
-crimson   #b01c25   the KL wordmark          → brand-600
-deep      #961920   the seal lettering       → brand-700
+crimson   #a41c24   sampled from the seal    → brand-600
+deep      #8a1820   one step darker          → brand-700
 seal      #141414   the gear ring            → ink-900 / seal
 ```
 

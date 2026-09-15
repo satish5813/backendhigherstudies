@@ -90,13 +90,11 @@ export default function Landing() {
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* the bar is transparent over the dark hero until the page scrolls */}
-          <Logo invert={!scrolled} />
+          <Logo />
           <nav className="hidden items-center gap-8 md:flex">
             {[['Features', '#features'], ['How it works', '#how'], ['ATS score', '#ats'], ['Students', '/students']].map(
               ([label, href]) => {
-                const cls = `text-sm font-semibold transition ${
-                  scrolled ? 'text-ink-600 hover:text-ink-900' : 'text-white/70 hover:text-white'
-                }`;
+                const cls = 'text-sm font-semibold text-ink-600 transition hover:text-ink-900';
                 return href.startsWith('#') ? (
                   <a key={href} href={href} className={cls}>{label}</a>
                 ) : (
@@ -112,9 +110,7 @@ export default function Landing() {
               <>
                 <Link
                   to="/login"
-                  className={`btn hidden sm:inline-flex ${
-                    scrolled ? 'text-ink-600 hover:bg-ink-100 hover:text-ink-900' : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }`}
+                  className="btn hidden text-ink-600 hover:bg-ink-100 hover:text-ink-900 sm:inline-flex"
                 >
                   Sign in
                 </Link>
@@ -126,52 +122,54 @@ export default function Landing() {
       </header>
 
       {/* ------------------------------------------------------------ hero */}
-      <section className="relative overflow-hidden bg-ink-950 pt-16">
-        <div className="absolute inset-0 bg-mesh opacity-90" />
+      <section className="relative overflow-hidden bg-white pt-16">
+        {/* A whisper of crimson at the top corners instead of a full flood —
+            enough to feel branded, light enough to read all day. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[560px] bg-[radial-gradient(60rem_28rem_at_15%_-10%,rgba(164,28,36,.10),transparent_70%),radial-gradient(48rem_24rem_at_88%_0%,rgba(164,28,36,.07),transparent_65%)]" />
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="pointer-events-none absolute inset-0 opacity-[0.55]"
           style={{
             backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 .5H60M.5 0V60' stroke='white' stroke-width='1'/%3E%3C/svg%3E\")",
+              "url(\"data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 .5H64M.5 0V64' stroke='%23f2f2f4' stroke-width='1'/%3E%3C/svg%3E\")",
           }}
         />
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-10 lg:px-8 lg:pb-32 lg:pt-24">
           <div className="animate-fade-up">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/90 backdrop-blur">
-              <IconSparkles size={14} className="text-brand-300" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3.5 py-1.5 text-xs font-semibold text-brand-700">
+              <IconSparkles size={14} className="text-brand-600" />
               Koneru Lakshmaiah Education Foundation · Placement Cell
             </span>
 
-            <h1 className="mt-6 font-display text-[2.6rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-white sm:text-6xl lg:text-[4.1rem]">
+            <h1 className="mt-6 font-display text-[2.6rem] font-extrabold leading-[1.05] tracking-[-0.035em] text-ink-900 sm:text-6xl lg:text-[4.2rem]">
               Ready before
-              <span className="block bg-gradient-to-r from-brand-300 via-brand-200 to-white bg-clip-text text-transparent">
+              <span className="block text-brand-600">
                 the drive opens.
               </span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/70">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-500">
               Fill your details in once. KL Placement Readiness turns them into an ATS-scored resume,
               a recruiter-ready profile with your live LeetCode and GitHub stats, and a daily feed of
               openings the placement cell has approved for you.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link to="/login" className="btn-primary h-12 px-7 text-[15px] shadow-glow">
+              <Link to="/login" className="btn-primary h-12 px-7 text-[15px] shadow-crisp">
                 Build my resume — free <IconArrowRight size={17} />
               </Link>
               <Link
                 to="/students"
-                className="btn h-12 border border-white/20 bg-white/5 px-7 text-[15px] text-white backdrop-blur transition hover:bg-white/10"
+                className="btn h-12 border border-ink-200 bg-white px-7 text-[15px] font-semibold text-ink-700 transition hover:border-ink-300 hover:bg-ink-50"
               >
                 Browse student profiles
               </Link>
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-sm text-white/55">
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-sm text-ink-500">
               {['No password to remember', 'Free for students', 'Export to PDF instantly'].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5">
-                  <IconCheck size={15} className="text-emerald-400" />
+                  <IconCheck size={15} className="text-emerald-600" />
                   {t}
                 </span>
               ))}
@@ -241,17 +239,17 @@ export default function Landing() {
         </div>
 
         {/* stats bar */}
-        <div className="relative border-t border-white/10 bg-white/5 backdrop-blur">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-white/10 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <div className="relative border-y border-ink-200 bg-ink-50/70">
+          <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-ink-200 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
             {[
               ['8', 'ATS dimensions scored'],
               ['21', 'Resume templates'],
               ['656', 'Students on the roster'],
               ['Daily', 'Approved job digests'],
             ].map(([big, small], i) => (
-              <div key={small} className={`px-5 py-6 ${i < 2 ? 'border-b border-white/10 lg:border-b-0' : ''}`}>
-                <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{big}</p>
-                <p className="mt-1 text-[13px] text-white/55">{small}</p>
+              <div key={small} className={`px-5 py-6 ${i < 2 ? 'border-b border-ink-200 lg:border-b-0' : ''}`}>
+                <p className="font-display text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">{big}</p>
+                <p className="mt-1 text-[13px] text-ink-500">{small}</p>
               </div>
             ))}
           </div>
