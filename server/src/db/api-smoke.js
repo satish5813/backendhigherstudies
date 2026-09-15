@@ -157,6 +157,19 @@ async function main() {
   // filling one student's inbox with sign-in codes.
   const probe = `probe.${Date.now()}@kluniversity.in`;
   const first = await call('/api/auth/request-otp', { method: 'POST', body: { email: probe } });
+
+  if (diag.data?.signup?.rosterOnly) {
+    // With the roster gate on, an address that is not a registration number
+    // never gets a code, and that refusal is the thing worth proving. The
+    // cooldown checks below need a real roster address, which would send a
+    // real student a code — so they are skipped here, and covered by
+    // e2e-roster.js locally.
+    ok('an address not on the roster is refused (403 not_on_roster)',
+      first.status === 403 && first.data?.error === 'not_on_roster', `got ${first.status} ${JSON.stringify(first.data)}`);
+    const noVerify = await call('/api/auth/verify-otp', { method: 'POST', body: { email: probe, code: '000000' } });
+    ok('...and cannot verify a code either', noVerify.status === 403, `got ${noVerify.status}`);
+    console.log('  skip  cooldown and wrong-code checks (would email a real student)');
+  } else {
   ok('first OTP request accepted', first.status === 200, `got ${first.status}`);
 
   const immediate = await call('/api/auth/request-otp', { method: 'POST', body: { email: probe } });
@@ -175,6 +188,7 @@ async function main() {
   });
   ok('a wrong code is rejected', wrongCode.status === 401, `got ${wrongCode.status}`);
   ok('remaining attempts are reported', typeof wrongCode.data?.attemptsLeft === 'number');
+  }
 
   if (env.otp.maxRequestsPerIp > 50) {
     caution(`OTP_MAX_REQUESTS_PER_IP is ${env.otp.maxRequestsPerIp}`,
