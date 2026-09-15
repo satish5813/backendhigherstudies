@@ -24,6 +24,7 @@ export const ACTIONS = {
   RESUME_EXPORTED: 'resume.exported',
   RESUME_UPLOADED: 'resume.uploaded',
   AI_USED: 'ai.used',
+  AI_APPLIED: 'ai.applied',
   ALERT_UPDATED: 'alert.updated',
   ALERT_SENT: 'alert.sent',
   PROFILE_VIEWED: 'profile.viewed',

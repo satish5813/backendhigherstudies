@@ -184,7 +184,7 @@ export function AiSummaryButton({ data, targetRole, onApply }) {
 const EFFORT_TONE = { quick: 'emerald', medium: 'sky', substantial: 'amber' };
 
 /** A placement officer's read of the whole resume, not a generic checklist. */
-export function AiReviewPanel({ resumeId }) {
+export function AiReviewPanel({ resumeId, onApplied }) {
   const { enabled, model } = useAiEnabled();
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState(null);
@@ -249,18 +249,7 @@ export function AiReviewPanel({ resumeId }) {
             </p>
             <ol className="space-y-2.5">
               {review.fixes.map((fix, i) => (
-                <li key={i} className="rounded-xl border border-ink-200 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">
-                      {fix.where}
-                    </span>
-                    {fix.effort && <Badge tone={EFFORT_TONE[fix.effort] ?? 'slate'}>{fix.effort}</Badge>}
-                  </div>
-                  {fix.problem && (
-                    <p className="mt-1.5 text-[12px] leading-relaxed text-ink-500">{fix.problem}</p>
-                  )}
-                  <p className="mt-1.5 text-[12.5px] font-medium leading-relaxed text-ink-900">{fix.action}</p>
-                </li>
+                <FixCard key={i} fix={fix} onApplied={onApplied} />
               ))}
             </ol>
           </div>
@@ -272,5 +261,105 @@ export function AiReviewPanel({ resumeId }) {
         </div>
       )}
     </div>
+  );
+}
+
+const TARGET_LABEL = {
+  headline: 'Use this headline',
+  summary: 'Use this summary',
+  skills: 'Add these skills',
+};
+
+/**
+ * One suggestion, with a button when the AI gave us text we can actually write.
+ *
+ * Applying goes to the PROFILE, not this resume — so the fix also improves the
+ * student's next resume, their public profile and their job matching. The card
+ * says so, because "Apply" that silently edits something you are not looking at
+ * is the kind of thing that makes people distrust a tool.
+ *
+ * Fixes needing the student's own numbers arrive with no `apply` object at all,
+ * and correctly show as advice with nothing to click.
+ */
+function FixCard({ fix, onApplied }) {
+  const [state, setState] = useState('idle');   // idle | busy | done
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const toast = useToast();
+
+  const patch = fix.apply;
+
+  async function apply() {
+    setState('busy');
+    setError('');
+    try {
+      const res = await aiApi.apply(patch);
+      setResult(res);
+      setState('done');
+      toast.success(res.message);
+      onApplied?.(res);
+    } catch (err) {
+      setError(err.message);
+      setState('idle');
+    }
+  }
+
+  return (
+    <li className={`rounded-xl border p-3 transition ${
+      state === 'done' ? 'border-emerald-200 bg-emerald-50/40' : 'border-ink-200'
+    }`}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">{fix.where}</span>
+        {fix.effort && <Badge tone={EFFORT_TONE[fix.effort] ?? 'slate'}>{fix.effort}</Badge>}
+      </div>
+
+      {fix.problem && <p className="mt-1.5 text-[12px] leading-relaxed text-ink-500">{fix.problem}</p>}
+      <p className="mt-1.5 text-[12.5px] font-medium leading-relaxed text-ink-900">{fix.action}</p>
+
+      {patch && state !== 'done' && (
+        <div className="mt-2.5 rounded-lg bg-ink-50 p-2.5">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-400">
+            {patch.target === 'skills' ? 'Skills to add' : `New ${patch.target}`}
+          </p>
+          {patch.target === 'skills' ? (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {patch.value.map((s) => (
+                <span key={s} className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-semibold text-ink-700 ring-1 ring-ink-200">
+                  {s}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-800">{patch.value}</p>
+          )}
+
+          <button onClick={apply} disabled={state === 'busy'} className="btn-primary mt-2 h-8 text-[11.5px]">
+            {state === 'busy' ? <Spinner size={12} /> : <IconCheck size={13} />}
+            {state === 'busy' ? 'Saving…' : TARGET_LABEL[patch.target]}
+          </button>
+          <p className="mt-1.5 text-[10.5px] leading-relaxed text-ink-400">
+            Saves to your profile, so every resume you build next picks it up.
+          </p>
+        </div>
+      )}
+
+      {state === 'done' && (
+        <p className="mt-2 flex items-center gap-1.5 text-[11.5px] font-bold text-emerald-700">
+          <IconCheck size={13} />
+          {result?.target === 'skills' && result.added?.length === 0
+            ? 'Already on your profile'
+            : 'Saved to your profile'}
+        </p>
+      )}
+
+      {/* No patch and no button: the fix needs something only the student has. */}
+      {!patch && /\[NUMBER\]/.test(fix.action) && (
+        <p className="mt-2 text-[10.5px] leading-relaxed text-amber-700">
+          Only you know this number — fill it in yourself in the Content tab.
+        </p>
+      )}
+
+      {error && <p className="mt-1.5 text-[11px] font-medium text-rose-600">{error}</p>}
+    </li>
   );
 }

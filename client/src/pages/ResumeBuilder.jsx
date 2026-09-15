@@ -213,7 +213,16 @@ export default function ResumeBuilder() {
             <div className="scroll-thin max-h-[calc(100vh-11rem)] overflow-y-auto p-5">
               {panel === 'score' && <ScorePanel report={report} resume={resume} roles={roles} onPatch={patch} onOpenJd={() => setJdOpen(true)} />}
               {panel === 'content' && <ContentPanel data={resume.data} onPatchData={patchData} />}
-              {panel === 'ai' && <AiReviewPanel resumeId={id} />}
+              {panel === 'ai' && (
+                <AiReviewPanel
+                  resumeId={id}
+                  // The apply endpoint writes to the profile. Pull it straight
+                  // back in so the preview and the ATS score reflect the change
+                  // the student just accepted, instead of making them find
+                  // "Pull from profile" to see any effect.
+                  onApplied={pullFromProfile}
+                />
+              )}
               {panel === 'template' && (
                 <TemplatePanel
                   templates={templates}

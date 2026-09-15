@@ -2,9 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
-import { validate, wrap, HttpError } from '../middleware/common.js';
-import { aiStatus, improveBullet, reviewResume, writeSummary } from '../services/ai.js';
-import { queryOne } from '../config/db.js';
+import { validate, wrap, writeLimiter, HttpError } from '../middleware/common.js';
+import { aiStatus, improveBullet, reviewResume, sanitiseApply, writeSummary } from '../services/ai.js';
+import { execute, query, queryOne } from '../config/db.js';
 import { clientIp, ACTIONS, logActivity } from '../utils/activity.js';
 
 const router = Router();
@@ -91,6 +91,78 @@ router.post('/review/:resumeId', aiLimiter, wrap(async (req, res) => {
     detail: { task: 'review', resumeId: Number(req.params.resumeId), fixes: result.fixes.length },
   });
   res.json(result);
+}));
+
+/**
+ * POST /api/ai/apply — accept one AI suggestion.
+ *
+ * This writes to the PROFILE, not to the one resume the review ran against.
+ * The profile is the source of truth every resume autofills from, so applying a
+ * fix only to the resume would leave the student's next resume, their public
+ * profile and their job matching carrying the same weak headline the AI just
+ * told them to replace.
+ *
+ * Nothing is applied automatically. The student presses a button per fix, and
+ * the response says exactly what changed so the UI can show it.
+ */
+const applySchema = z.object({
+  target: z.enum(['headline', 'summary', 'skills']),
+  value: z.union([z.string().trim().min(1), z.array(z.string().trim().min(1)).min(1)]),
+});
+
+router.post('/apply', writeLimiter, validate(applySchema), wrap(async (req, res) => {
+  // Re-run the same guard the review used. The client could post anything, and
+  // "[NUMBER]" reaching a real profile is the failure that matters here.
+  const clean = sanitiseApply(req.body);
+  if (!clean)
+    throw new HttpError(422, 'That suggestion still needs your own numbers — fill it in yourself.', 'needs_you');
+
+  if (clean.target === 'skills') {
+    // Add, never replace. The AI sees one resume; the student's profile may
+    // hold skills this resume deliberately left out.
+    const existing = await query(`SELECT name FROM skills WHERE user_id = ?`, [req.user.id]);
+    const have = new Set(existing.map((s) => s.name.toLowerCase()));
+    const fresh = clean.value.filter((s) => !have.has(s.toLowerCase()));
+
+    if (!fresh.length)
+      return res.json({ ok: true, target: 'skills', added: [], message: 'You already have all of those.' });
+
+    const [{ next }] = await query(
+      `SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM skills WHERE user_id = ?`, [req.user.id]
+    );
+    for (const [i, name] of fresh.entries()) {
+      await execute(
+        `INSERT INTO skills (user_id, name, category, proficiency, sort_order) VALUES (?, ?, 'other', 3, ?)`,
+        [req.user.id, name, next + i]
+      );
+    }
+
+    await logActivity(req, {
+      userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: 'skills', added: fresh },
+    });
+    return res.json({
+      ok: true,
+      target: 'skills',
+      added: fresh,
+      message: `Added ${fresh.length} skill${fresh.length === 1 ? '' : 's'} to your profile.`,
+    });
+  }
+
+  const column = clean.target === 'headline' ? 'headline' : 'about';
+  const before = await queryOne(`SELECT ${column} AS v FROM users WHERE id = ?`, [req.user.id]);
+  await execute(`UPDATE users SET ${column} = ? WHERE id = ?`, [clean.value, req.user.id]);
+
+  await logActivity(req, {
+    userId: req.user.id, action: ACTIONS.AI_APPLIED, detail: { target: clean.target },
+  });
+  res.json({
+    ok: true,
+    target: clean.target,
+    // Returned so the UI can offer an undo without a second round trip.
+    previous: before?.v ?? null,
+    value: clean.value,
+    message: clean.target === 'headline' ? 'Headline updated.' : 'Summary updated.',
+  });
 }));
 
 export default router;

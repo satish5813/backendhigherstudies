@@ -275,21 +275,84 @@ your impact" on its own.
 For missing keywords, only suggest ones this student could plausibly claim given
 what is already listed. Say so if a keyword would be dishonest for them.
 
+APPLYING A FIX
+Where a fix is just new text, also return an "apply" object so the student can
+accept it with one click instead of retyping it. Only these targets exist:
+
+  {"target":"headline","value":"the new headline"}
+  {"target":"summary","value":"the new summary paragraph"}
+  {"target":"skills","value":["Skill One","Skill Two"]}     <- skills to ADD
+
+Rules for "apply":
+- Omit it entirely when the fix needs the student's own knowledge — a metric
+  they have not given you, a project they must describe, a decision about what
+  to cut. Those are advice, not text.
+- NEVER put [NUMBER] inside an apply value. If the replacement text needs a
+  number the student has not supplied, there is no apply object: they have to
+  write it. Keep the [NUMBER] token in "action" so they know what to fill in.
+- For skills, list ONLY skills this student has evidence for elsewhere in the
+  resume. Do not pad it with keywords they cannot back up in an interview.
+- "value" is the finished text, exactly as it should appear. No quotes around
+  it, no "Change headline to" preamble.
+
 Return JSON:
-{"fixes":[{"where":"which section or line","problem":"what is wrong","action":"exactly what to do","effort":"quick|medium|substantial"}],
+{"fixes":[{"where":"which section or line","problem":"what is wrong","action":"exactly what to do","effort":"quick|medium|substantial","apply":{...} or omitted}],
  "strongest":"the single best thing about this resume",
  "verdict":"one sentence on readiness for this role"}`;
 
   const result = await generate(prompt, { temperature: 0.4, json: true, maxTokens: 8192, thinking: 'high' });
   if (!result.ok) return result;
 
-  const fixes = (result.data?.fixes ?? []).filter((f) => f?.action);
+  const fixes = (result.data?.fixes ?? [])
+    .filter((f) => f?.action)
+    .map((f) => ({ ...f, apply: sanitiseApply(f.apply) }));
+
   return {
     ok: true,
     fixes,
     strongest: result.data?.strongest ?? null,
     verdict: result.data?.verdict ?? null,
   };
+}
+
+/**
+ * Keep only patches we are willing to write into a student's profile.
+ *
+ * The model is asked to follow the rules above; this is what happens when it
+ * does not. An unrecognised target, an empty value, or a placeholder the
+ * student was supposed to fill in all collapse to `null`, which means the fix
+ * shows as advice with no Apply button rather than writing nonsense into a
+ * profile the student then sends to an employer.
+ */
+const APPLY_TARGETS = new Set(['headline', 'summary', 'skills']);
+const MAX = { headline: 180, summary: 1200, skill: 60 };
+
+export function sanitiseApply(apply) {
+  if (!apply || typeof apply !== 'object') return null;
+  if (!APPLY_TARGETS.has(apply.target)) return null;
+
+  // A placeholder anywhere in the value disqualifies the whole patch. Writing a
+  // literal "[NUMBER]" into someone's headline is worse than no button at all.
+  const hasPlaceholder = (s) => /\[(NUMBER|X|Y|TODO|INSERT|YOUR)\b[^\]]*\]/i.test(String(s));
+
+  if (apply.target === 'skills') {
+    const value = (Array.isArray(apply.value) ? apply.value : [apply.value])
+      .map((s) => String(s ?? '').trim())
+      .filter((s) => s && s.length <= MAX.skill && !hasPlaceholder(s));
+    // De-duplicate case-insensitively; the model repeats itself often enough.
+    const seen = new Set();
+    const unique = value.filter((s) => {
+      const k = s.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return unique.length ? { target: 'skills', value: unique.slice(0, 20) } : null;
+  }
+
+  const value = String(apply.value ?? '').trim();
+  if (!value || hasPlaceholder(value) || value.length > MAX[apply.target]) return null;
+  return { target: apply.target, value };
 }
 
 /* ------------------------------------------------------------- helpers */

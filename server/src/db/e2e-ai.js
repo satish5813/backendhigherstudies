@@ -164,6 +164,48 @@ async function main() {
     }
   }
 
+  /* ------------------------------------------------ E. applying a fix */
+  console.log('\nApplying a suggestion');
+  {
+    const me = await queryOne('SELECT id, headline FROM users WHERE email = ?', [EMAIL]);
+    const original = me?.headline ?? null;
+
+    const good = await call('POST', '/api/ai/apply',
+      { target: 'headline', value: 'Final Year Computer Science Engineering Student' }, token);
+    check('POST /api/ai/apply → 200', good.status === 200, JSON.stringify(good.data).slice(0, 120));
+    check('it returns the previous value so the UI can undo', 'previous' in (good.data ?? {}));
+
+    const after = await queryOne('SELECT headline FROM users WHERE email = ?', [EMAIL]);
+    check('the PROFILE changed, not just the resume',
+      after?.headline === 'Final Year Computer Science Engineering Student', after?.headline);
+
+    // The one that must never get through.
+    const bad = await call('POST', '/api/ai/apply',
+      { target: 'headline', value: 'Backend engineer serving [NUMBER] users' }, token);
+    check('a [NUMBER] placeholder is refused → 422', bad.status === 422, 'got ' + bad.status);
+    const unchanged = await queryOne('SELECT headline FROM users WHERE email = ?', [EMAIL]);
+    check('the refused value never reached the profile',
+      !String(unchanged?.headline ?? '').includes('[NUMBER]'));
+
+    const badTarget = await call('POST', '/api/ai/apply', { target: 'projects', value: 'x' }, token);
+    check('an unknown target is rejected', badTarget.status === 422, 'got ' + badTarget.status);
+
+    check('applying needs auth',
+      (await call('POST', '/api/ai/apply', { target: 'headline', value: 'anon' })).status === 401);
+
+    // Skills add rather than replace, and repeat safely.
+    const skills = await call('POST', '/api/ai/apply',
+      { target: 'skills', value: ['Database Design', 'Message Queues'] }, token);
+    check('skills apply → 200', skills.status === 200);
+    const twice = await call('POST', '/api/ai/apply',
+      { target: 'skills', value: ['Database Design', 'Message Queues'] }, token);
+    check('re-applying the same skills adds nothing', (twice.data?.added ?? []).length === 0);
+
+    await execute('DELETE FROM skills WHERE user_id = ? AND name IN (?, ?)',
+      [me.id, 'Database Design', 'Message Queues']);
+    await execute('UPDATE users SET headline = ? WHERE id = ?', [original, me.id]);
+  }
+
   console.log(`\n${passed} passed, ${failed} failed\n`);
   await pool.end();
   process.exit(failed ? 1 : 0);

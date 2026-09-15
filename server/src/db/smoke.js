@@ -5,6 +5,7 @@
  *   node server/src/db/smoke.js
  */
 import { scoreResume } from '../services/atsScore.js';
+import { sanitiseApply } from '../services/ai.js';
 import { validateEmail } from '../utils/emailValidator.js';
 import { ACCENT_PRESETS, buildResumeData, normaliseAccent, pruneEmpty, TEMPLATE_IDS, TEMPLATES } from '../services/resumeBuilder.js';
 import { fetchLeetCode, normaliseHandle, codingStrength } from '../services/codingProfiles.js';
@@ -146,6 +147,36 @@ console.log('\nTemplate ATS penalties');
   check('a safest-parse template costs nothing', minimal.score === base.score, `${base.score} vs ${minimal.score}`);
 }
 
+
+
+console.log('\nApplying an AI suggestion');
+{
+  // The button only appears when sanitiseApply returns a patch, so this is the
+  // gate between a model's output and a student's real profile.
+  const ok = (p) => sanitiseApply(p) !== null;
+
+  check('a plain headline is applicable', ok({ target: 'headline', value: 'Final Year CSE Student' }));
+  check('a plain summary is applicable', ok({ target: 'summary', value: 'Backend-focused final-year student.' }));
+  check('a skills list is applicable', ok({ target: 'skills', value: ['Java', 'Docker'] }));
+
+  // The failure that actually matters: a placeholder the student was meant to
+  // fill in must never be written into their profile as literal text.
+  check('[NUMBER] in a headline is refused', !ok({ target: 'headline', value: 'Served [NUMBER] users' }));
+  check('[NUMBER] in a summary is refused', !ok({ target: 'summary', value: 'Cut latency by [NUMBER]%' }));
+  check('[YOUR ...] is refused', !ok({ target: 'summary', value: 'Student at [YOUR COLLEGE]' }));
+  check('a placeholder skill is dropped but the rest survive',
+    JSON.stringify(sanitiseApply({ target: 'skills', value: ['React', '[NUMBER] users'] })?.value) === '["React"]');
+
+  check('an unknown target is refused', !ok({ target: 'projects', value: 'anything' }));
+  check('an empty value is refused', !ok({ target: 'headline', value: '   ' }));
+  check('an over-long headline is refused', !ok({ target: 'headline', value: 'x'.repeat(200) }));
+  check('a missing patch is refused', !ok(null) && !ok(undefined) && !ok('headline'));
+
+  check('duplicate skills collapse',
+    sanitiseApply({ target: 'skills', value: ['React', 'react', 'REACT'] })?.value.length === 1);
+  check('an all-placeholder skill list yields no patch',
+    !ok({ target: 'skills', value: ['[NUMBER] users'] }));
+}
 
 console.log('\nRisky-glyph detection');
 {

@@ -218,6 +218,9 @@ export const aiApi = {
   bullet: (payload) => api.post('/ai/bullet', payload),
   summary: (payload) => api.post('/ai/summary', payload),
   review: (resumeId) => api.post(`/ai/review/${resumeId}`),
+  // Writes an accepted suggestion into the PROFILE, so it also reaches the
+  // student's next resume and their public profile — not just this document.
+  apply: (patch) => api.post('/ai/apply', patch),
 };
 
 export const cohortApi = {
