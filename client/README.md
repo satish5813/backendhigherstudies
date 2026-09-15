@@ -15,6 +15,16 @@ the session cookie behaves exactly as when Express serves the bundle itself.
 |----------------|------------------------------------------------------|------------------------------------------------------|
 | `API_UPSTREAM` | Backend host name, no scheme. Changed without rebuild | `bl2mqfd6tm3nk2az3xl36mpo.187.127.135.148.sslip.io` |
 
+## Deploy on Vercel
+
+Import this repository; Vercel detects Vite and needs no settings and no
+environment variables. `vercel.json` rewrites `/api` and `/uploads` to the
+backend at Vercel's edge, so the browser stays on one origin exactly as with
+the nginx image. The backend address lives in that one file — change it there.
+
+Then set `APP_URL` on the **backend** to the Vercel address, so links in
+sign-in emails open here.
+
 ## Deploy on Coolify
 
 New resource → Public repository → this repo, branch `main`, build pack
