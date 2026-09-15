@@ -5,9 +5,8 @@ trimmed and knocked transparent so they sit on any surface. Replace them with
 SVG (`kl-lockup.svg` / `kl-seal.svg`) whenever the vector files are to hand —
 those are tried first and stay sharp at favicon size.
 
-Drop the two official KL marks in this folder, with these exact filenames. The
-app looks for them by name and falls back to a typographic monogram until they
-are here, so nothing breaks in the meantime — it just is not the real logo yet.
+The app looks these up by filename and falls back to a typographic monogram if
+one goes missing, so a bad deploy degrades rather than breaks.
 
 | File | What it is | Used for |
 | --- | --- | --- |
