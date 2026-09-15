@@ -3,7 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "description": "CareerForge — student profiling + ATS resume builder + daily job alerts",
-  "workspaces": ["server", "client"],
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently -n API,WEB -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "npm --workspace server run dev",
@@ -11,10 +14,13 @@
     "build": "npm --workspace client run build",
     "migrate": "npm --workspace server run migrate",
     "seed": "npm --workspace server run seed",
-    "start": "npm --workspace server run start"
+    "start": "npm --workspace server run start",
+    "push:client": "node scripts/push-client.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
