@@ -35,6 +35,31 @@ const opt = (name, fallback = null) => {
 const DOMAIN = opt('domain');
 const SMTP_USER = opt('smtp-user', 'drsatishthatavarti@kluniversity.in');
 
+/**
+ * Coolify hands you the database as one `mysql://user:pass@host:port/name`
+ * string. Splitting that by hand into four variables is exactly where a
+ * deployment goes wrong — a truncated password or a missed character surfaces
+ * as "access denied", which reads like the wrong credentials.
+ *
+ *   --db-url "mysql://mysql:PASSWORD@servicename:3306/default"
+ */
+function parseDbUrl(raw) {
+  if (!raw) return null;
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  if (!/^mysql/.test(u.protocol)) return null;
+  return {
+    host: u.hostname,
+    port: u.port || '3306',
+    // decodeURIComponent, because a generated password can contain %-escapes.
+    user: decodeURIComponent(u.username || 'mysql'),
+    password: decodeURIComponent(u.password || ''),
+    name: u.pathname.replace(/^\//, '') || 'default',
+  };
+}
+
+const db = parseDbUrl(opt('db-url'));
+
 if (!DOMAIN) {
   console.error(`
 Give the domain the app will be served from:
@@ -99,11 +124,11 @@ APP_URL=${appUrl}
 # --- database -------------------------------------------------------------
 # DB_HOST is the SERVICE NAME Coolify gave the MySQL container, not an IP and
 # never the public address. Change it if you named the service differently.
-DB_HOST=careerforge-db
-DB_PORT=3306
-DB_NAME=careerforge
-DB_USER=careerforge
-DB_PASSWORD=${s.DB_PASSWORD}
+DB_HOST=${db ? db.host : 'careerforge-db'}
+DB_PORT=${db ? db.port : '3306'}
+DB_NAME=${db ? db.name : 'careerforge'}
+DB_USER=${db ? db.user : 'careerforge'}
+DB_PASSWORD=${db ? db.password : s.DB_PASSWORD}
 
 # --- sessions -------------------------------------------------------------
 # Changing either of these signs every student out. Generated once and reused.
@@ -174,7 +199,9 @@ const blanks = [...env.matchAll(/^([A-Z_]+)=$/gm)].map((m) => m[1]).filter((k) =
 console.log(`\nWrote ${OUT}\n`);
 console.log(`  ${env.split('\n').filter((l) => /^[A-Z]/.test(l)).length} variables, secrets already filled in.`);
 console.log(`  APP_URL  ${appUrl}`);
-console.log(`  DB_HOST  careerforge-db  (rename if your Coolify service differs)\n`);
+console.log(`  DB_HOST  ${db ? db.host : 'careerforge-db'}${db ? '  (from --db-url)' : '  (rename if your Coolify service differs)'}`);
+console.log(`  DB_NAME  ${db ? db.name : 'careerforge'}`);
+console.log(`  DB_USER  ${db ? db.user : 'careerforge'}\n`);
 console.log('Fill in these two by hand before deploying:');
 for (const k of blanks) console.log(`  ${k}`);
 console.log(`

@@ -25,13 +25,24 @@ function splitStatements(sql) {
 async function main() {
   const { host, port, user, password, database } = env.db;
 
-  // 1. connect without a database so we can create it
-  const root = await mysql.createConnection({ host, port, user, password, multipleStatements: false });
-  await root.query(
-    `CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
-  );
-  console.log(`database \`${database}\` ready`);
-  await root.end();
+  // 1. Create the database if we are allowed to.
+  //
+  // On a managed MySQL — Coolify, RDS, PlanetScale — the database already
+  // exists and the user we are given deliberately has no CREATE privilege.
+  // Failing here would stop a perfectly good deployment with "access denied
+  // for user", which reads like wrong credentials rather than what it is. So
+  // the attempt is best-effort: if the database turns out to be reachable in
+  // step 2, it did not matter.
+  try {
+    const root = await mysql.createConnection({ host, port, user, password, multipleStatements: false });
+    await root.query(
+      `CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+    console.log(`database \`${database}\` ready`);
+    await root.end();
+  } catch (err) {
+    console.log(`could not create \`${database}\` (${err.code || err.message}) — assuming it already exists`);
+  }
 
   // 2. apply the schema
   const conn = await mysql.createConnection({ host, port, user, password, database });
