@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-sans text-ink-900;
+  }
+  ::selection {
+    @apply bg-brand-600/20 text-brand-900;
+  }
+  /* keyboard focus only — a mouse click should not ring every button */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 select-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:scale-[.98]
+           disabled:hover:bg-brand-600;
+  }
+  .btn-secondary {
+    @apply btn border border-ink-200 bg-white text-ink-700 hover:border-ink-300 hover:bg-ink-50 active:scale-[.98];
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 active:scale-[.98];
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900
+           placeholder:text-ink-400 transition focus:border-brand-500 focus:outline-none
+           focus:ring-4 focus:ring-brand-500/10 disabled:bg-ink-50 disabled:text-ink-400;
+  }
+  .input-error {
+    @apply border-rose-400 focus:border-rose-500 focus:ring-rose-500/10;
+  }
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-ink-700;
+  }
+  .hint {
+    @apply mt-1.5 text-xs text-ink-500;
+  }
+  .error-text {
+    @apply mt-1.5 flex items-start gap-1.5 text-xs font-medium text-rose-600;
+  }
+
+  .card {
+    @apply rounded-2xl border border-ink-200/80 bg-white shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+
+  .section-title {
+    @apply text-sm font-bold uppercase tracking-[.12em] text-ink-500;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-ink-100;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer
+           bg-gradient-to-r from-transparent via-white/70 to-transparent;
+    content: '';
+  }
+}
+
+/* ------------------------------------------------------------------ resume */
+/* The printable document. Kept deliberately plain: no columns, no floats, no
+   background images — everything an ATS parser chokes on is absent. */
+.resume-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 15mm;
+  background: #fff;
+  color: #111827;
+  font-family: Calibri, Carlito, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.42;
+}
+.resume-page h1 { font-size: 20pt; font-weight: 700; letter-spacing: -0.4pt; }
+.resume-page h2 {
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6pt;
+  margin: 13pt 0 5pt;
+  padding-bottom: 2pt;
+  border-bottom: 0.8pt solid #9ca3af;
+}
+.resume-page h3 { font-size: 10.5pt; font-weight: 700; }
+.resume-page ul { list-style: disc; padding-left: 15pt; margin: 3pt 0; }
+.resume-page li { margin-bottom: 2.5pt; }
+.resume-page a { color: inherit; text-decoration: none; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #fff !important; }
+  .no-print { display: none !important; }
+
+  /* Only the resume reaches the paper.
+     Marking individual chrome `.no-print` is whack-a-mole — the app shell,
+     the sidebar, a toast mid-flight and anything added later all leak in.
+     So hide everything, then re-show the document, and pin it to the page
+     origin so the shell's layout offsets cannot push it around. */
+  body * { visibility: hidden !important; }
+  .resume-page,
+  .resume-page * { visibility: visible !important; }
+
+  .resume-page {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 210mm !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* The preview scales the page down to fit the pane. None of that may reach
+     the printer, or the PDF comes out shrunken in a corner of the sheet.
+     `position: static` also keeps the sizer from becoming the containing
+     block for the absolutely positioned page above. */
+  .print-root,
+  .resume-viewport,
+  .resume-sizer,
+  .resume-scaler {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* thin scrollbars inside panels */
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { @apply rounded-full bg-ink-300; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }

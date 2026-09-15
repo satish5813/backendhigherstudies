@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+# Every .env variant EXCEPT the committed template. .env.backup held a live
+# SMTP password and API key and was staged by the first .
+.env.*
+!.env.example
+*.log
+.DS_Store
+uploads/
+coverage/
+.local-db/
+
+# Application-proof screenshots. Student PII — never versioned.
+server/private/
