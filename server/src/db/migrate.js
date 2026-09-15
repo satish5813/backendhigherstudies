@@ -79,6 +79,15 @@ async function main() {
     { table: 'jobs', column: 'reviewed_at', definition: `DATETIME DEFAULT NULL`, after: 'reviewed_by' },
     { table: 'jobs', column: 'review_note', definition: `VARCHAR(500) DEFAULT NULL`, after: 'reviewed_at' },
     { table: 'jobs', column: 'ingested_at', definition: `DATETIME DEFAULT NULL`, after: 'review_note' },
+    // What the model read out of the description, as opposed to what the
+    // regex guessed from the title. Kept separate from the heuristic columns
+    // so an officer can see the two disagree.
+    { table: 'jobs', column: 'ai_fresher_ok', definition: `TINYINT(1) DEFAULT NULL COMMENT 'model: open to a no-experience candidate'`, after: 'ingested_at' },
+    { table: 'jobs', column: 'ai_years_required', definition: `TINYINT UNSIGNED DEFAULT NULL`, after: 'ai_fresher_ok' },
+    { table: 'jobs', column: 'ai_core_subjects', definition: `JSON DEFAULT NULL COMMENT 'DSA, OS, DBMS, System Design ...'`, after: 'ai_years_required' },
+    { table: 'jobs', column: 'ai_summary', definition: `VARCHAR(255) DEFAULT NULL`, after: 'ai_core_subjects' },
+    { table: 'jobs', column: 'ai_confidence', definition: `ENUM('high','medium','low') DEFAULT NULL`, after: 'ai_summary' },
+    { table: 'jobs', column: 'ai_checked_at', definition: `DATETIME DEFAULT NULL`, after: 'ai_confidence' },
     // When this student was emailed an invitation to claim their record, so a
     // second send can target only the people who never responded.
     { table: 'student_records', column: 'invited_at', definition: `DATETIME DEFAULT NULL`, after: 'claimed_at' },

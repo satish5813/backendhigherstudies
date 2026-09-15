@@ -13,6 +13,13 @@ export const hydrateJob = (j) => ({
   ...j,
   id: Number(j.id),
   skills: parse(j.skills),
+  // What the model read out of the description: the core CS subjects this
+  // posting actually tests, and the experience the body text asks for. These
+  // matter more to a campus student than the technology list — DSA and OS are
+  // what they revise, React is what they pick up.
+  coreSubjects: parse(j.ai_core_subjects),
+  yearsRequired: j.ai_years_required == null ? null : Number(j.ai_years_required),
+  aiSummary: j.ai_summary ?? null,
   min_ctc: j.min_ctc == null ? null : Number(j.min_ctc),
   max_ctc: j.max_ctc == null ? null : Number(j.max_ctc),
   active: Boolean(j.active),

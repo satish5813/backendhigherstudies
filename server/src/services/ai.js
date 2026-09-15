@@ -15,6 +15,15 @@ import { env } from '../config/env.js';
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 const TIMEOUT_MS = 30_000;
 
+/**
+ * A thin public wrapper over the internal generator, for callers that just want
+ * structured JSON back - job enrichment, for instance. Keeps generate() itself
+ * private so its option surface stays one module's business.
+ */
+export async function generateJson(prompt, opts = {}) {
+  return generate(prompt, { ...opts, json: true });
+}
+
 export function aiStatus() {
   return {
     configured: Boolean(env.ai.key),
