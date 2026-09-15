@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { cohortApi } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { Badge, EmptyState, PageLoader } from '../components/ui';
@@ -41,6 +41,22 @@ export default function StudentResume() {
     window.print();
     setTimeout(() => { document.title = previousTitle; }, 800);
   };
+
+  // Opened from the follow-up dashboard with ?print=1: raise the print dialog
+  // — the browser's own PDF preview with a Save button — as soon as the
+  // document has rendered, so one click on "Resume PDF" is the whole job.
+  const [params] = useSearchParams();
+  const autoPrint = params.get('print') === '1';
+  const printedRef = useRef(false);
+  useEffect(() => {
+    if (!autoPrint || !resume || printedRef.current) return;
+    printedRef.current = true;
+    let cancelled = false;
+    const ready = document.fonts?.ready ?? Promise.resolve();
+    ready.then(() => setTimeout(() => { if (!cancelled) download(); }, 500));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrint, resume]);
 
   if (user?.role !== 'admin') {
     return <EmptyState icon={IconDoc} title="Admin access required" message="Only the placement cell can open another student's resume." />;

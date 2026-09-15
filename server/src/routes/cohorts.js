@@ -88,8 +88,9 @@ router.get('/followup', requireAdmin, wrap(async (req, res) => {
             atsScore: num(r.ats_score),
             updatedAt: r.resume_updated_at,
             count: Number(r.resume_count || 0),
-            // Opens the resume in the main app's admin print view.
-            printUrl: `${env.appUrl}/app/students/${r.cohort}/${encodeURIComponent(r.reg_no)}/resume/${r.resume_id}`,
+            // Opens the resume in the main app's admin print view, which raises
+            // the browser's PDF dialog on its own when asked to.
+            printUrl: `${env.appUrl}/app/students/${r.cohort}/${encodeURIComponent(r.reg_no)}/resume/${r.resume_id}?print=1`,
           }
         : null,
     };
