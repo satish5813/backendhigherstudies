@@ -5,6 +5,7 @@ import { apiLimiter, wrap, HttpError } from '../middleware/common.js';
 import { fromRow, SECTIONS } from './sections.js';
 import { codingStrength, profileUrl } from '../services/codingProfiles.js';
 import { ACTIONS, logActivity } from '../utils/activity.js';
+import { env } from '../config/env.js';
 
 const router = Router();
 router.use(apiLimiter, optionalAuth);
@@ -169,7 +170,61 @@ router.get('/', wrap(async (req, res) => {
     onRoster: Number(rosterRow?.onRoster ?? 0),
     claimed: Number(rosterRow?.claimed ?? 0),
     published: total,
+    listed: 0,
   };
+
+  /**
+   * Students from the placement roster who have not published a profile.
+   *
+   * Listed at the institution's decision — these are its enrolled students and
+   * a class list is ordinary for a university to publish. What is NOT ordinary
+   * is the rest of the workbook, so this carries four fields and no more:
+   * name, branch, campus, registration number.
+   *
+   * Explicitly excluded, and worth naming so nobody adds them later: CGPA, CRT
+   * scores and percentiles, readiness index, target band, rank, mobile, date of
+   * birth, gender, personal email, and the coaching notes. Those are the
+   * placement cell's analysis of a student, not a fact about them, and they
+   * stay between the student and the cell.
+   *
+   * Set DIRECTORY_LIST_ROSTER=false to show only published profiles.
+   */
+  let rosterItems = [];
+  if (env.directory.listRoster) {
+    const rWhere = ['sr.user_id IS NULL'];
+    const rParams = [];
+    if (req.query.campus) { rWhere.push('sr.campus = ?'); rParams.push(req.query.campus); }
+    if (req.query.branch) { rWhere.push('sr.branch = ?'); rParams.push(req.query.branch); }
+    if (req.query.q) {
+      rWhere.push('(sr.name LIKE ? OR sr.branch LIKE ?)');
+      rParams.push(`%${req.query.q}%`, `%${req.query.q}%`);
+    }
+
+    const [{ n }] = await query(
+      `SELECT COUNT(*) AS n FROM student_records sr WHERE ${rWhere.join(' AND ')}`, rParams
+    );
+    roster.listed = n;
+
+    // Paged independently of the published list, which is deliberately shown
+    // first — a student who did the work should not be buried under 500 who
+    // have not started.
+    const rPage = Math.max(1, Number(req.query.rosterPage) || 1);
+    const rPer = 48;
+    rosterItems = (await query(
+      `SELECT sr.reg_no, sr.name, sr.branch, sr.campus
+         FROM student_records sr WHERE ${rWhere.join(' AND ')}
+        ORDER BY sr.name LIMIT ${rPer} OFFSET ${(rPage - 1) * rPer}`,
+      rParams
+    )).map((r) => ({
+      regNo: r.reg_no,
+      name: r.name,
+      branch: r.branch,
+      campus: r.campus,
+      published: false,
+    }));
+    roster.rosterPages = Math.ceil(n / rPer);
+    roster.rosterPage = rPage;
+  }
 
   res.json({
     items: rows.map((r) => ({
@@ -187,6 +242,7 @@ router.get('/', wrap(async (req, res) => {
     total,
     page,
     pages: Math.ceil(total / perPage),
+    rosterItems,
     // Context, so an almost-empty page explains itself instead of looking
     // broken. A placement record is not a profile: the roster holds CRT scores
     // and readiness bands, and none of a student's own writing exists until

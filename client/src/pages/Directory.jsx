@@ -136,9 +136,70 @@ export default function Directory() {
                 </button>
               </div>
             )}
+
+            <RosterList data={data} />
           </>
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * Enrolled students who have not published a profile yet.
+ *
+ * Shown so the directory reflects the whole batch rather than the handful who
+ * have signed in. Four fields only — name, branch, campus, registration number.
+ * Everything the placement cell knows beyond that (CGPA, CRT scores, readiness
+ * band, contact details) is its analysis of a student rather than a fact about
+ * them, and stays off a public page.
+ *
+ * These are visually quieter than a published card and carry no link, because
+ * there is no profile behind them yet. That difference is the incentive.
+ */
+function RosterList({ data }) {
+  const items = data.rosterItems ?? [];
+  if (!items.length) return null;
+
+  const { listed = 0, rosterPage = 1, rosterPages = 1 } = data.roster ?? {};
+
+  return (
+    <section className="mt-14 border-t border-ink-200 pt-10">
+      <h2 className="font-display text-lg font-extrabold tracking-tight text-ink-900">
+        Also on the roster
+      </h2>
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-500">
+        {listed} student{listed === 1 ? '' : 's'} enrolled with the placement cell who have not
+        published a profile yet. They appear in full above once they sign in and fill theirs in.
+      </p>
+
+      <ul className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((s) => (
+          <li
+            key={s.regNo}
+            className="flex items-center gap-3 rounded-xl border border-ink-200 bg-white/60 px-3.5 py-2.5"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ink-100 text-[11px] font-bold text-ink-400">
+              {(s.name || '?').split(/\s+/).slice(0, 2).map((x) => x[0]?.toUpperCase()).join('')}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-semibold text-ink-700">{s.name}</span>
+              <span className="block truncate text-[11.5px] text-ink-400">
+                {[s.branch, s.campus].filter(Boolean).join(' · ') || 'KL University'}
+              </span>
+            </span>
+            <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-wide text-ink-300">
+              not published
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {rosterPages > 1 && (
+        <p className="mt-5 text-center text-[13px] text-ink-400">
+          Showing {items.length} of {listed} · page {rosterPage} of {rosterPages}
+        </p>
+      )}
+    </section>
   );
 }

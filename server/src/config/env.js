@@ -100,6 +100,13 @@ export const env = {
     allowedDomains: list(process.env.ALLOWED_EMAIL_DOMAINS),
   },
 
+  directory: {
+    // List enrolled students who have not published a profile yet, with name,
+    // branch, campus and registration number only. The institution decides;
+    // set false to show published profiles alone.
+    listRoster: bool(process.env.DIRECTORY_LIST_ROSTER, true),
+  },
+
   jobs: {
     // The package floor for the nightly sweep, in lakhs per annum. A posting
     // clears it on the TOP of its range, so "18-30 LPA" survives a floor of 20
