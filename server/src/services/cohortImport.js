@@ -138,6 +138,13 @@ export async function importCohorts(payload, { dryRun = false, log = () => {} } 
         totals.coding += 1;
       }
     }
+
+    // The count is what the table holds, not what this request carried, so a
+    // chunked or partial import cannot misreport a cohort's size.
+    await execute(
+      `UPDATE cohorts SET student_count = (SELECT COUNT(*) FROM student_records WHERE cohort_id = ?) WHERE id = ?`,
+      [cohortId, cohortId]
+    );
   }
 
   // Attach records to anyone who already has an account — by either email on
