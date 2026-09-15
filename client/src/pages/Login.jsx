@@ -33,7 +33,10 @@ export default function Login() {
   const toast = useToast();
   const { signIn } = useAuth();
 
-  const redirectTo = location.state?.from?.pathname || '/app';
+  // Where to land after signing in: the page that sent us here (path and
+  // query, so a deep link such as a student's resume survives), else the app.
+  const from = location.state?.from;
+  const redirectTo = from?.pathname ? `${from.pathname}${from.search || ''}` : '/app';
 
   /* -------------------------------------------------- live email validation */
   useEffect(() => {
@@ -111,7 +114,11 @@ export default function Login() {
       const res = await authApi.verifyOtp(email, code, name.trim() || undefined);
       signIn(res);
       toast.success(res.isNewUser ? 'Account created. Welcome.' : 'Signed in.');
-      navigate(res.isNewUser ? '/app/profile?onboarding=1' : redirectTo, { replace: true });
+      // A first sign-in goes through onboarding — unless it is an administrator,
+      // who has no profile to build and was almost certainly sent here by a
+      // deep link (the follow-up dashboard's "Resume PDF") they expect to reach.
+      const isAdmin = res.user?.role === 'admin';
+      navigate(res.isNewUser && !isAdmin ? '/app/profile?onboarding=1' : redirectTo, { replace: true });
     } catch (err) {
       setError(err.message);
       setDigits(Array(OTP_LENGTH).fill(''));

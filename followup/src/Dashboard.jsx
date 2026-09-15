@@ -22,6 +22,8 @@ export default function Dashboard({ user, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 50;
 
   const load = async () => {
     setLoading(true);
@@ -44,6 +46,13 @@ export default function Dashboard({ user, onSignOut }) {
       !needle || s.name.toLowerCase().includes(needle) || String(s.regNo).toLowerCase().includes(needle) || (s.branch || '').toLowerCase().includes(needle)
     );
   }, [data, filter, q]);
+
+  // A new filter or search starts from the first page; the pager stays inside
+  // whatever the list currently is.
+  useEffect(() => { setPage(1); }, [filter, q]);
+  const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const current = Math.min(page, pages);
+  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
   const exportCsv = () => {
     const head = ['Name', 'Reg No', 'Branch', 'Cohort', 'Status', 'Last sign-in', 'ATS score', 'Resume', 'Public profile', 'Resume PDF', 'Mobile', 'Placement email', 'Personal email', 'Login email'];
@@ -143,7 +152,7 @@ export default function Dashboard({ user, onSignOut }) {
                   <tr><td colSpan={7} className="py-10 text-center text-ink-400">Loading…</td></tr>
                 ) : !rows.length ? (
                   <tr><td colSpan={7} className="py-10 text-center text-ink-400">No students match.</td></tr>
-                ) : rows.map((st) => (
+                ) : pageRows.map((st) => (
                   <tr key={st.regNo} className="border-b border-ink-100 align-top hover:bg-ink-50/60">
                     <td className="py-2.5 pr-3">
                       <p className="font-semibold text-ink-900">{st.name}</p>
@@ -179,6 +188,21 @@ export default function Dashboard({ user, onSignOut }) {
               </tbody>
             </table>
           </div>
+          {rows.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 pt-3 text-sm">
+              <p className="text-ink-500">
+                Showing <span className="font-semibold text-ink-900">{(current - 1) * PER_PAGE + 1}–{Math.min(current * PER_PAGE, rows.length)}</span> of{' '}
+                <span className="font-semibold text-ink-900">{rows.length}</span>
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button className="btn-secondary h-8 px-3 text-xs" onClick={() => setPage(1)} disabled={current === 1}>« First</button>
+                <button className="btn-secondary h-8 px-3 text-xs" onClick={() => setPage(current - 1)} disabled={current === 1}>‹ Prev</button>
+                <span className="px-2 text-xs text-ink-500">Page {current} of {pages}</span>
+                <button className="btn-secondary h-8 px-3 text-xs" onClick={() => setPage(current + 1)} disabled={current === pages}>Next ›</button>
+                <button className="btn-secondary h-8 px-3 text-xs" onClick={() => setPage(pages)} disabled={current === pages}>Last »</button>
+              </div>
+            </div>
+          )}
           <p className="mt-3 text-[11px] text-ink-400">
             Contact details are shown to the placement cell only; every load of this list is recorded in the activity log.
           </p>
