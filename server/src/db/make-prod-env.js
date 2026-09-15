@@ -33,7 +33,7 @@ const opt = (name, fallback = null) => {
 };
 
 const DOMAIN = opt('domain');
-const SMTP_USER = opt('smtp-user', 'drsatishthatavarti@kluniversity.in');
+const SMTP_USER = opt('smtp-user', 'officeskilling@kluniversity.in');
 
 /**
  * Coolify hands you the database as one `mysql://user:pass@host:port/name`

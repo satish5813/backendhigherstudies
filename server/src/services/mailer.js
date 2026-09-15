@@ -78,6 +78,16 @@ export async function verifyMailer() {
     console.warn('[mail] SMTP_HOST not set — mail delivery is disabled');
     return false;
   }
+  // The From address is its own variable, and that catches people out: change
+  // SMTP_USER to a new mailbox, forget MAIL_FROM_ADDRESS, and every message
+  // still goes out under the old name. Worse, Microsoft 365 refuses to send as
+  // an address the authenticated mailbox does not own (5.7.60), so a mismatch
+  // is not merely cosmetic - it stops delivery entirely.
+  if (env.mail.user && env.mail.fromAddress.toLowerCase() !== env.mail.user.toLowerCase()) {
+    console.warn(`[mail] MAIL_FROM_ADDRESS (${env.mail.fromAddress}) is not SMTP_USER (${env.mail.user}).`);
+    console.warn('[mail] messages are sent as MAIL_FROM_ADDRESS, and Microsoft 365 rejects that unless it is an alias this mailbox owns.');
+  }
+
   try {
     await tx.verify();
     verified = true;
