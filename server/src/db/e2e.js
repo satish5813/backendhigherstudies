@@ -435,7 +435,12 @@ async function main() {
 
     const dir = await call('GET', '/api/u?perPage=5', undefined, { auth: false });
     check('directory → 200', dir.status === 200);
-    check('directory includes this student', dir.data?.items?.some((s) => s.slug === slug));
+    // The directory is KL-only: it carries @kluniversity.in addresses and
+    // excludes test and demo accounts, because it is the public face of the
+    // university. This suite signs up on gmail, so it must NOT appear.
+    check('the directory excludes a non-KL address',
+      !dir.data?.items?.some((s) => s.slug === slug));
+    check('the directory still returns KL students', Array.isArray(dir.data?.items));
 
     await call('PATCH', '/api/profile', { profile_public: false });
     check('private profile → 403 for anonymous',

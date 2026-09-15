@@ -8,7 +8,7 @@
  */
 import { execute, pool, query, queryOne } from '../config/db.js';
 import { env } from '../config/env.js';
-import { estimateCtc, isIndia, isPlaceableRole, normalise, parseCtc } from '../services/jobIngest.js';
+import { estimateCtc, isFresherRole, isIndia, isPlaceableRole, normalise, parseCtc } from '../services/jobIngest.js';
 
 const BASE = process.env.E2E_BASE || `http://localhost:${env.port}`;
 const API = `${BASE}/api`;
@@ -63,13 +63,33 @@ async function main() {
 
   console.log('Pure classification (no network)');
   {
-    check('Staff SWE outranks plain SWE',
-      estimateCtc('Staff Software Engineer').min > estimateCtc('Software Engineer').min);
-    check('Principal outranks Senior',
-      estimateCtc('Principal Engineer').min > estimateCtc('Senior Software Engineer').min);
-    check('Director is the top band', estimateCtc('Director of Engineering').max >= 150);
-    check('intern is not a 20 LPA role', estimateCtc('Software Engineer Intern').max < 20);
+    // The bands are now FRESHER bands only — senior titles never reach the
+    // estimator because isFresherRole() drops them first, so the old
+    // "Director is the top band" assertion no longer describes the system.
+    check('an AI role pays above a generic dev role',
+      estimateCtc('Machine Learning Engineer').max > estimateCtc('Backend Developer').max);
+    check('intern sits below the graduate bands', estimateCtc('Software Engineer Intern').max < 20);
+    check('no fresher band claims a senior package',
+      Object.values(['Software Engineer', 'Data Analyst', 'Applied AI Engineer'])
+        .every((t) => estimateCtc(t).max <= 40));
     check('unknown title gets no band', estimateCtc('Zookeeper') === null);
+
+    // The gate that keeps a final-year student out of roles they cannot get.
+    check('a director role is not a fresher role', !isFresherRole('Director of Engineering'));
+    check('a staff role is not a fresher role', !isFresherRole('Staff Software Engineer'));
+    check('a senior role is not a fresher role', !isFresherRole('Senior Software Engineer'));
+    check('a numbered level is not a fresher role', !isFresherRole('Software Engineer 3'));
+    check('a roman-numeral level is not a fresher role', !isFresherRole('Data Scientist II'));
+    check('"intermediate" is not a fresher role', !isFresherRole('Intermediate Backend Engineer'));
+    check('"Sr." glued to the next word is still senior', !isFresherRole('Sr.Data Scientist I'));
+    check('a plain engineer title is a fresher role', isFresherRole('Software Engineer'));
+    check('an explicit fresher title is kept', isFresherRole('Graduate Engineer Trainee'));
+    check('SDE-1 is kept', isFresherRole('SDE-1'));
+    check('a senior title is dropped by normalise',
+      normalise({
+        externalId: 'greenhouse:acme:9', title: 'Senior Software Engineer', company: 'Acme',
+        location: 'Bengaluru, India', description: 'Java.', applyUrl: 'https://x.test/9',
+      }).skip === 'not_fresher');
 
     check('payroll role is filtered out', !isPlaceableRole('Senior Payroll Accountant'));
     check('sales role is filtered out', !isPlaceableRole('Sales Engineer'));
@@ -92,7 +112,8 @@ async function main() {
   console.log('\nNormalisation rules');
   {
     const base = {
-      externalId: 'greenhouse:acme:1', title: 'Senior Software Engineer', company: 'Acme',
+      // A fresher title: 'Senior ...' is now dropped before any other rule runs.
+      externalId: 'greenhouse:acme:1', title: 'Software Engineer', company: 'Acme',
       location: 'Bengaluru, India', description: 'Java, Kubernetes and AWS.', applyUrl: 'https://x.test/1',
     };
     check('a good posting is kept', Boolean(normalise(base).row));

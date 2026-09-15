@@ -106,6 +106,26 @@ router.get('/', wrap(async (req, res) => {
   const where = ["status = 'active'", 'profile_public = 1', 'name IS NOT NULL', 'slug IS NOT NULL'];
   const params = [];
 
+  // The directory is the public face of the university, so it carries KL
+  // students and nothing else.
+  //
+  // Test and demo accounts were reaching it — two "E2E Test Student" rows from
+  // suite runs were sitting on the public page. Filtering by address rather
+  // than deleting keeps the suites free to create accounts without ever
+  // exposing one, and covers the seeded demo profile too.
+  where.push("email LIKE '%@kluniversity.in'");
+  where.push("email NOT LIKE 'e2e%'");
+  where.push("email NOT LIKE 'test.%'");
+  where.push("email NOT LIKE '%@careerforge.local'");
+
+  // An empty profile is not worth a card — same rule the single profile page
+  // applies, so the directory and the profile agree on what "published" means.
+  where.push(`(
+    headline IS NOT NULL OR about IS NOT NULL
+    OR EXISTS (SELECT 1 FROM skills s WHERE s.user_id = users.id)
+    OR EXISTS (SELECT 1 FROM projects p WHERE p.user_id = users.id)
+  )`);
+
   if (req.query.q) {
     where.push('(name LIKE ? OR headline LIKE ? OR branch LIKE ?)');
     const like = `%${req.query.q}%`;

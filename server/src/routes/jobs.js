@@ -7,6 +7,7 @@ import { findMatches, hydrateAlert, hydrateJob, matchScore, sendDigestFor } from
 import { ACTIONS, logActivity } from '../utils/activity.js';
 import applicationRoutes from './applications.js';
 import jobAdminRoutes from './jobAdmin.js';
+import jobFitRoutes from './jobFit.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -16,6 +17,8 @@ router.use(requireAuth);
 // look them up as job ids.
 router.use('/applications', applicationRoutes);
 router.use('/admin', jobAdminRoutes);
+// '/:id/fit' — mounted at the root so the id param resolves here.
+router.use('/', jobFitRoutes);
 
 /* ----------------------------------------------------------------- browsing */
 

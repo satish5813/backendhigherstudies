@@ -133,6 +133,62 @@ export function isPlaceableRole(title) {
 }
 
 /**
+ * Could a final-year student actually apply to this?
+ *
+ * This is the filter that matters most and was missing. Without it 82% of the
+ * queue was Director, Principal, Staff and Senior roles — and because those
+ * carry the biggest packages, they sorted straight to the top and made the
+ * board look like it was full of 60-150 LPA openings. A student applying to
+ * "Director of Engineering" is rejected before a human reads it, and learns
+ * that the portal wastes their time.
+ *
+ * Seniority is judged on the title alone, which is imperfect but is the only
+ * signal every board actually provides. The bias is deliberately toward
+ * excluding: a senior job shown to a fresher costs them an application and
+ * some confidence, while a fresher job missed costs one row in a queue that
+ * refills nightly.
+ */
+const SENIOR_TITLE = new RegExp([
+  'senior', 'sr\\.?\\s*[a-z]', 'staff', 'principal', 'distinguished', 'fellow',
+  'lead\\b', 'leader', 'director', '\\bvp\\b', 'vice president', '\\bhead\\b',
+  'chief', '\\bcto\\b', 'architect',
+  'manager', 'mgr\\b',
+  // Mid-level, which is not a first job either.
+  'intermediate', 'mid[- ]level', 'experienced',
+  // Level markers. "Software Engineer 2" and "Engineer III" both mean the
+  // second rung, and boards write them every possible way.
+  '(engineer|developer|scientist|analyst|sde|swe)\\s*[-–]?\\s*[2-9]\\b',
+  '(engineer|developer|scientist|analyst)\\s+(ii|iii|iv|v)\\b',
+  '\\bsde\\s*[-–]?\\s*[2-9]\\b', '\\bswe\\s*[-–]?\\s*[2-9]\\b',
+  '\\bl[4-9]\\b', '\\blevel\\s*[3-9]\\b',
+  // Experience stated in the title.
+  '\\d\\+?\\s*(years|yrs)',
+].join('|'), 'i');
+
+/**
+ * Titles that say "fresher" outright. Only consulted when no seniority marker
+ * is present — an earlier version let these override, and "Sr.Data Scientist I"
+ * slipped through on the trailing "I".
+ */
+const FRESHER_TITLE = new RegExp([
+  'fresher', 'graduate', 'new ?grad', 'campus', 'trainee', 'intern\\b',
+  'entry[- ]level', 'junior', '\\bjr\\.?\\b', 'associate engineer',
+  '\\bsde\\s*[-–]?\\s*1\\b', '\\bswe\\s*[-–]?\\s*1\\b', '\\bl1\\b',
+  'apprentice', 'early career',
+].join('|'), 'i');
+
+export function isFresherRole(title) {
+  const t = String(title ?? '');
+  // Seniority wins outright. A title carrying both signals ("Senior Graduate
+  // Engineer" does not exist, but "Sr. Data Scientist I" does) is senior.
+  if (SENIOR_TITLE.test(t)) return false;
+  if (FRESHER_TITLE.test(t)) return true;
+  // No marker either way: an untitled "Software Engineer" is the classic
+  // campus-hire posting, so it stays.
+  return true;
+}
+
+/**
  * When no package is published, infer a band from the title.
  *
  * This is a heuristic, and it is labelled as one everywhere it surfaces
@@ -148,18 +204,21 @@ export function isPlaceableRole(title) {
  */
 const TITLE_BANDS = [
   [/\b(intern|internship|trainee|apprentice|graduate programme)\b/i,     { min: 6,  max: 12 }],
-  [/\b(chief|\bcto\b|\bvp\b|vice president|head of|director)\b/i,        { min: 60, max: 150 }],
-  [/\b(distinguished|fellow|principal)\b/i,                             { min: 70, max: 140 }],
-  [/\b(staff|architect|sde\s*(?:iv|4)|l[56]\b)\b/i,                     { min: 45, max: 90 }],
-  [/\b(engineering manager|\bem\b|manager, engineering)\b/i,            { min: 40, max: 75 }],
-  [/\b(senior|sr\.?|lead|sde\s*(?:iii|3|ii|2)|swe\s*(?:iii|3|ii|2)|l[34]\b)\b/i, { min: 28, max: 55 }],
-  [/\b(machine learning|ml engineer|data scientist|ai engineer|research scientist)\b/i, { min: 24, max: 50 }],
-  [/\b(devops|sre|site reliability|platform|infrastructure|security|cloud)\b/i, { min: 20, max: 42 }],
-  [/\b(product manager|technical program manager|\btpm\b)\b/i,          { min: 25, max: 50 }],
-  // The floor case: an untitled-seniority engineering role. Deliberately spans
-  // fresher to mid, because that is genuinely what the title tells us.
-  [/\b(software|backend|front ?end|full ?stack|mobile|android|ios|data|qa|test)\b.*\b(engineer|developer)\b/i, { min: 10, max: 28 }],
-  [/\b(engineer|developer)\b/i,                                         { min: 10, max: 25 }],
+
+  // Everything below is a FRESHER band, because isFresherRole() has already
+  // excluded senior titles by the time this runs. The old table carried
+  // Director and Principal rows at 60-150 LPA; those numbers were real for the
+  // role but meaningless here, and they dominated the board precisely because
+  // they were the largest.
+  //
+  // These are entry-level Indian ranges. The spread is wide on purpose: the
+  // same "Software Engineer" title pays about 5 LPA at a service company and
+  // about 30 at a product one, and the title alone cannot tell us which.
+  [/\b(machine learning|ml engineer|data scientist|ai engineer|research)\b/i, { min: 10, max: 32 }],
+  [/\b(devops|sre|site reliability|platform|infrastructure|security|cloud)\b/i, { min: 8, max: 26 }],
+  [/\b(product manager|technical program manager|\btpm\b)\b/i,          { min: 12, max: 30 }],
+  [/\b(software|backend|front ?end|full ?stack|mobile|android|ios|data|qa|test)\b.*\b(engineer|developer)\b/i, { min: 6, max: 28 }],
+  [/\b(engineer|developer|analyst)\b/i,                                 { min: 5, max: 24 }],
 ];
 
 export function estimateCtc(title) {
@@ -231,6 +290,7 @@ export function normalise(raw, { minCtc = env.jobs.minCtc } = {}) {
   if (!raw.applyUrl) return { skip: 'no_apply_url' };
   if (!isIndia(raw.location)) return { skip: 'not_india' };
   if (!isPlaceableRole(raw.title)) return { skip: 'off_track' };
+  if (!isFresherRole(raw.title)) return { skip: 'not_fresher' };
 
   const description = stripHtml(raw.description ?? '').slice(0, 7000);
 
