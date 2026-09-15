@@ -44,7 +44,7 @@ export default function ResumeList() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-ink-900">Resumes</h1>
+          <h1 className="display-md">Resumes</h1>
           <p className="mt-1 text-sm text-ink-500">
             One per target role. Each is scored against ATS criteria the moment you edit it.
           </p>

@@ -66,8 +66,46 @@
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
   }
 
+  /* ------------------------------------------------------------ typography */
+
+  /**
+   * The display voice. One class rather than a dozen ad-hoc combinations, so
+   * every page heading is cut the same way.
+   *
+   * Three things make a serif read as considered rather than merely large:
+   * negative tracking so the counters do not drift apart, leading pulled in
+   * tighter than the sans would take, and weight held at 600 — a 700 Fraunces
+   * at 48px is shouting, and luxury is the opposite of shouting.
+   */
+  .display {
+    @apply font-display font-semibold tracking-display text-ink-900;
+    line-height: 1.06;
+    font-variation-settings: 'SOFT' 18, 'WONK' 0;
+  }
+  .display-lg { @apply display text-[2.4rem] sm:text-[3.2rem] lg:text-[3.9rem]; }
+  .display-md { @apply display text-[1.85rem] sm:text-[2.2rem]; }
+  .display-sm { @apply display text-[1.45rem]; line-height: 1.16; }
+
+  /**
+   * The eyebrow above a heading. Wide tracking is what makes small caps read as
+   * deliberate; without it they just look like shrunken text.
+   */
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-eyebrow text-ink-400;
+  }
+
+  /**
+   * Body copy that is actually read, as opposed to scanned. Looser leading and
+   * a measure cap — a line longer than about 70 characters is measurably harder
+   * to track back from, and no amount of nice type fixes it.
+   */
+  .prose-body {
+    @apply text-[15px] leading-[1.75] text-ink-600;
+    max-width: 68ch;
+  }
+
   .section-title {
-    @apply text-sm font-bold uppercase tracking-[.12em] text-ink-500;
+    @apply text-[11px] font-bold uppercase tracking-eyebrow text-ink-400;
   }
 
   .skeleton {

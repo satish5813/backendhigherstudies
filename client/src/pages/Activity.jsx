@@ -33,7 +33,7 @@ export default function Activity() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Activity log</h1>
+        <h1 className="display-md">Activity log</h1>
         <p className="mt-1 text-sm text-ink-500">
           Every action on your account — sign-ins, edits, syncs and alert deliveries. {data?.total ?? 0} entries.
         </p>

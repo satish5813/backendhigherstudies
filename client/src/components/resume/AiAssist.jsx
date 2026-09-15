@@ -311,7 +311,7 @@ function FixCard({ fix, resumeId, onApplied }) {
       state === 'done' ? 'border-emerald-200 bg-emerald-50/40' : 'border-ink-200'
     }`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-400">{fix.where}</span>
+        <span className="section-title">{fix.where}</span>
         {fix.effort && <Badge tone={EFFORT_TONE[fix.effort] ?? 'slate'}>{fix.effort}</Badge>}
       </div>
 

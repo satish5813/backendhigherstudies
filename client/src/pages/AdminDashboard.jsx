@@ -108,7 +108,7 @@ export default function AdminDashboard() {
           <div className="grid gap-6 lg:grid-cols-3">
             {/* --------------------------------------------------- bands */}
             <section className="card p-5 lg:col-span-2">
-              <h2 className="text-base font-bold tracking-tight text-ink-900">Readiness bands</h2>
+              <h2 className="display-sm">Readiness bands</h2>
               <p className="text-sm text-ink-500">Where the cohort could realistically target.</p>
 
               <div className="mt-5 space-y-3">
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
 
             {/* ------------------------------------------------- adoption */}
             <section className="card flex flex-col p-5">
-              <h2 className="text-base font-bold tracking-tight text-ink-900">Account adoption</h2>
+              <h2 className="display-sm">Account adoption</h2>
               <p className="text-sm text-ink-500">Students who have claimed their record.</p>
 
               <div className="mt-4 flex flex-col items-center">

@@ -80,7 +80,7 @@ export default function Alerts() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Daily job alerts</h1>
+        <h1 className="display-md">Daily job alerts</h1>
         <p className="mt-1 text-sm text-ink-500">
           A ranked digest of new openings, emailed to <b className="font-semibold text-ink-700">{user?.email}</b>.
         </p>

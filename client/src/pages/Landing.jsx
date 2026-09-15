@@ -136,31 +136,31 @@ export default function Landing() {
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-10 lg:px-8 lg:pb-32 lg:pt-24">
           <div className="animate-fade-up">
-            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3.5 py-1.5 text-xs font-semibold text-brand-700">
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-eyebrow text-brand-700">
               <IconSparkles size={14} className="text-brand-600" />
-              Koneru Lakshmaiah Education Foundation · Placement Cell
+              KL University · Placement Cell
             </span>
 
-            <h1 className="mt-6 font-display text-[2.6rem] font-extrabold leading-[1.05] tracking-[-0.035em] text-ink-900 sm:text-6xl lg:text-[4.2rem]">
+            <h1 className="display-lg mt-6">
               Ready before
               <span className="block text-brand-600">
                 the drive opens.
               </span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-500">
+            <p className="prose-body mt-6 max-w-xl text-[17px]">
               Fill your details in once. KL Placement Readiness turns them into an ATS-scored resume,
               a recruiter-ready profile with your live LeetCode and GitHub stats, and a daily feed of
               openings the placement cell has approved for you.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link to="/login" className="btn-primary h-12 px-7 text-[15px] shadow-crisp">
+              <Link to="/login" className="btn-primary h-12 whitespace-nowrap px-7 text-[15px] shadow-crisp">
                 Build my resume — free <IconArrowRight size={17} />
               </Link>
               <Link
                 to="/students"
-                className="btn h-12 border border-ink-200 bg-white px-7 text-[15px] font-semibold text-ink-700 transition hover:border-ink-300 hover:bg-ink-50"
+                className="btn h-12 whitespace-nowrap border border-ink-200 bg-white px-7 text-[15px] font-semibold text-ink-700 transition hover:border-ink-300 hover:bg-ink-50"
               >
                 Browse student profiles
               </Link>
@@ -248,7 +248,7 @@ export default function Landing() {
               ['Daily', 'Approved job digests'],
             ].map(([big, small], i) => (
               <div key={small} className={`px-5 py-6 ${i < 2 ? 'border-b border-ink-200 lg:border-b-0' : ''}`}>
-                <p className="font-display text-2xl font-extrabold tracking-tight text-ink-900 sm:text-3xl">{big}</p>
+                <p className="display-sm text-[1.7rem] sm:text-[2rem]">{big}</p>
                 <p className="mt-1 text-[13px] text-ink-500">{small}</p>
               </div>
             ))}

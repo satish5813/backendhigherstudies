@@ -42,13 +42,13 @@ export default function Settings() {
   return (
     <div className="max-w-3xl space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Settings</h1>
+        <h1 className="display-md">Settings</h1>
         <p className="mt-1 text-sm text-ink-500">Account, sessions and delivery diagnostics.</p>
       </header>
 
       {/* ------------------------------------------------------------ account */}
       <section className="card p-5 sm:p-6">
-        <h2 className="text-base font-bold tracking-tight text-ink-900">Account</h2>
+        <h2 className="display-sm">Account</h2>
         <dl className="mt-4 divide-y divide-ink-100">
           {[
             ['Email', user?.email],
@@ -69,7 +69,7 @@ export default function Settings() {
         <section className="card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold tracking-tight text-ink-900">Email delivery</h2>
+              <h2 className="display-sm">Email delivery</h2>
               <p className="mt-0.5 text-sm text-ink-500">Whether OTP and alert mail can actually leave the server.</p>
             </div>
             <Badge tone={diag.ready ? 'emerald' : 'rose'}>
@@ -115,7 +115,7 @@ export default function Settings() {
       <section className="card p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold tracking-tight text-ink-900">Signed-in devices</h2>
+            <h2 className="display-sm">Signed-in devices</h2>
             <p className="mt-0.5 text-sm text-ink-500">Each sign-in creates a session valid for 30 days.</p>
           </div>
           <button onClick={revokeAll} disabled={busy} className="btn-secondary h-9 shrink-0 text-xs">
@@ -145,7 +145,7 @@ export default function Settings() {
           institutional data nobody can recover. The route returns 403; the
           placement cell removes accounts. */}
       <section className="rounded-2xl border border-ink-200 bg-ink-50/50 p-5 sm:p-6">
-        <h2 className="text-base font-bold tracking-tight text-ink-900">Closing your account</h2>
+        <h2 className="display-sm">Closing your account</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-600">
           Your profile is tied to your placement record, so accounts are managed by the placement
           cell rather than deleted from here. Email them if you need yours removed and they will

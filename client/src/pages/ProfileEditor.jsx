@@ -82,7 +82,7 @@ export default function ProfileEditor() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-ink-900">My profile</h1>
+          <h1 className="display-md">My profile</h1>
           <p className="mt-1 text-sm text-ink-500">
             Everything here flows into your resumes, your public page and your job matches.
           </p>

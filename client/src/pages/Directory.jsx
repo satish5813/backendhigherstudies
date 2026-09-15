@@ -38,8 +38,8 @@ export default function Directory() {
       <section className="relative overflow-hidden bg-ink-950">
         <div className="absolute inset-0 bg-mesh opacity-80" />
         <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Student directory</h1>
-          <p className="mt-2.5 max-w-xl text-[15px] leading-relaxed text-white/65">
+          <h1 className="display-lg text-white">Student directory</h1>
+          <p className="mt-3 max-w-xl text-[16px] leading-[1.7] text-white/65">
             Public profiles from KL University students, published by the students themselves.
           </p>
 
@@ -165,7 +165,7 @@ function RosterList({ data }) {
 
   return (
     <section className="mt-14 border-t border-ink-200 pt-10">
-      <h2 className="font-display text-lg font-extrabold tracking-tight text-ink-900">
+      <h2 className="display-sm">
         Also on the roster
       </h2>
       <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-500">

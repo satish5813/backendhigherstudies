@@ -68,7 +68,7 @@ export default function StudentReport() {
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-100 p-5">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-ink-900">{s.name}</h1>
+            <h1 className="display-md">{s.name}</h1>
             <p className="mt-1 text-sm text-ink-500">
               <span className="font-mono">{s.regNo}</span>
               {s.branch ? ` · ${s.branch}` : ''}{s.campus ? ` · ${s.campus}` : ''}
@@ -130,7 +130,7 @@ export default function StudentReport() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ------------------------------------------------------ academics */}
         <section className="card p-5">
-          <h2 className="text-base font-bold tracking-tight text-ink-900">Academics & CRT</h2>
+          <h2 className="display-sm">Academics & CRT</h2>
           <dl className="mt-3 divide-y divide-ink-100">
             {[
               ['UG CGPA', s.academics.ug],
@@ -212,7 +212,7 @@ export default function StudentReport() {
 
         {/* -------------------------------------------------------- contact */}
         <section className="card p-5">
-          <h2 className="text-base font-bold tracking-tight text-ink-900">Contact</h2>
+          <h2 className="display-sm">Contact</h2>
           <p className="mt-0.5 text-[11px] text-ink-400">Visible to placement staff. Every view is logged.</p>
           <dl className="mt-3 divide-y divide-ink-100">
             {[

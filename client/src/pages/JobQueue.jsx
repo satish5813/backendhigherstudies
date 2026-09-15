@@ -127,7 +127,7 @@ export default function JobQueue() {
       {/* ------------------------------------------------------------ header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-ink-900">Job queue</h1>
+          <h1 className="display-md">Job queue</h1>
           <p className="mt-1 text-sm text-ink-500">
             Sourced openings wait here. Nothing reaches a student until you approve it.
           </p>
@@ -354,7 +354,7 @@ function SourcePanel({ sources }) {
   return (
     <div className="rounded-xl border border-ink-200 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12px] font-black uppercase tracking-wide text-ink-400">Where jobs come from</p>
+        <p className="section-title">Where jobs come from</p>
         <p className="text-[12px] text-ink-500">
           Keeping openings paying <strong className="text-ink-700">₹{sources.minCtc} LPA</strong> and above, in India.
           {sources.autoIngest && ` Runs daily at ${String(sources.ingestHour).padStart(2, '0')}:00.`}

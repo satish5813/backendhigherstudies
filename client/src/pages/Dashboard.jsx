@@ -173,7 +173,7 @@ export default function Dashboard() {
         <section className="card p-5 lg:col-span-2">
           <header className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold tracking-tight text-ink-900">Finish your profile</h2>
+              <h2 className="display-sm">Finish your profile</h2>
               <p className="text-sm text-ink-500">Each item adds to your profile strength.</p>
             </div>
             <Link to="/app/profile" className="btn-secondary h-9 text-xs">Open editor</Link>
@@ -202,7 +202,7 @@ export default function Dashboard() {
         <section className="card p-5">
           <header className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold tracking-tight text-ink-900">Coding profile</h2>
+              <h2 className="display-sm">Coding profile</h2>
               <p className="text-sm text-ink-500">Live from LeetCode & GitHub.</p>
             </div>
             <button onClick={syncCoding} disabled={syncing} className="btn-ghost h-8 rounded-lg px-2" title="Sync now">
@@ -261,7 +261,7 @@ export default function Dashboard() {
       <section className="card p-5">
         <header className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold tracking-tight text-ink-900">Matched for you</h2>
+            <h2 className="display-sm">Matched for you</h2>
             <p className="text-sm text-ink-500">Ranked against your skills and alert preferences.</p>
           </div>
           <Link to="/app/jobs" className="btn-secondary h-9 text-xs">All jobs <IconArrowRight size={14} /></Link>

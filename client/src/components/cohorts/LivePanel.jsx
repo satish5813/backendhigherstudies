@@ -225,7 +225,7 @@ export default function LivePanel({ live, recordName }) {
 function Block({ title, children }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">{title}</p>
+      <p className="section-title mb-1.5">{title}</p>
       {children}
     </div>
   );

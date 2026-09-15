@@ -19,10 +19,22 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Display is a serif now. A placement platform run by a 45-year-old
+        // institution can carry an editorial voice; Inter everywhere reads like
+        // every other dashboard. The pairing does the work — serif for the
+        // things you read once, sans for the things you read all day.
+        display: ['Fraunces', 'ui-serif', 'Georgia', 'Cambria', 'serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        // The resume itself renders in a stack every ATS can parse.
+        // The resume itself is NOT part of this. It renders in a stack every
+        // ATS can parse, and a decorative face there would cost a student
+        // parseability points — the one place taste must lose to the scanner.
         resume: ['Calibri', 'Carlito', 'Helvetica Neue', 'Arial', 'sans-serif'],
+      },
+      letterSpacing: {
+        // Display type needs negative tracking to stop large glyphs drifting
+        // apart; small caps need the opposite.
+        display: '-0.028em',
+        eyebrow: '0.17em',
       },
       colors: {
         // KL crimson, sampled from the seal artwork itself: #a41c24 is the

@@ -78,7 +78,7 @@ export default function Cohorts() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Students</h1>
+        <h1 className="display-md">Students</h1>
         <p className="mt-1 text-sm text-ink-500">
           Every student imported from the placement workbooks, ranked by readiness index.
         </p>
@@ -98,7 +98,7 @@ export default function Cohorts() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-base font-bold tracking-tight text-ink-900">{c.name}</p>
+                  <p className="display-sm">{c.name}</p>
                   <p className="mt-0.5 font-mono text-xs text-ink-400">{c.code}</p>
                 </div>
                 <Badge tone={active ? 'brand' : 'slate'}>{c.students} students</Badge>

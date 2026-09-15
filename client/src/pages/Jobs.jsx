@@ -70,7 +70,7 @@ export default function Jobs() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Jobs</h1>
+        <h1 className="display-md">Jobs</h1>
         <p className="mt-1 text-sm text-ink-500">
           Openings ranked against your skills. Tune what reaches your inbox in{' '}
           <Link to="/app/alerts" className="font-semibold text-brand-600 hover:underline">job alerts</Link>.

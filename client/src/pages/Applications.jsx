@@ -36,7 +36,7 @@ export default function Applications() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black tracking-tight text-ink-900">Applications</h1>
+        <h1 className="display-md">Applications</h1>
         <p className="mt-1 text-sm text-ink-500">
           Every opening a student has marked applied, and the proof they attached.
         </p>
@@ -67,7 +67,7 @@ export default function Applications() {
 
       {/* --------------------------------------------------------- top jobs */}
       <section>
-        <h2 className="text-sm font-black uppercase tracking-wide text-ink-400">Most applied to</h2>
+        <h2 className="section-title">Most applied to</h2>
         <div className="mt-2 overflow-x-auto rounded-xl border border-ink-200 bg-white">
           <table className="w-full min-w-[620px] text-sm">
             <thead className="border-b border-ink-100 bg-ink-50/70 text-left text-[12px] uppercase tracking-wide text-ink-500">
@@ -99,7 +99,7 @@ export default function Applications() {
 
       {/* ----------------------------------------------------------- recent */}
       <section>
-        <h2 className="text-sm font-black uppercase tracking-wide text-ink-400">Recent activity</h2>
+        <h2 className="section-title">Recent activity</h2>
         <div className="mt-2 space-y-1.5">
           {recent.map((r) => (
             <div
@@ -148,7 +148,7 @@ function Stat({ label, value, sub, tone = 'slate' }) {
       : 'border-ink-200 bg-white';
   return (
     <div className={`rounded-xl border p-3 ${ring}`}>
-      <p className="text-[12px] font-black uppercase tracking-wide text-ink-400">{label}</p>
+      <p className="section-title">{label}</p>
       <p className="mt-0.5 text-2xl font-black text-ink-900">{value}</p>
       {sub && <p className="text-[11.5px] text-ink-500">{sub}</p>}
     </div>
