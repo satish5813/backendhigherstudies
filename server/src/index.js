@@ -72,13 +72,25 @@ app.use('/api', corsMiddleware);
 
 app.get('/api/health', async (_req, res) => {
   let db = false;
-  try { db = await healthCheck(); } catch { db = false; }
+  let dbError = null;
+  try {
+    db = await healthCheck();
+  } catch (err) {
+    db = false;
+    // The driver's error code, and only while the database is actually down.
+    // ENOTFOUND, ECONNREFUSED and ER_ACCESS_DENIED_ERROR are three unrelated
+    // faults with three unrelated fixes, and telling them apart otherwise means
+    // getting someone to read the container log. Nothing identifying goes in
+    // here - no host, user, password or query.
+    dbError = err?.code || 'UNKNOWN';
+  }
   const mail = mailerStatus();
   res.status(db ? 200 : 503).json({
     ok: db,
     service: env.appName,
     env: env.nodeEnv,
     db,
+    ...(dbError ? { dbError } : {}),
     mail: { configured: mail.configured, verified: mail.verified },
     uptime: Math.round(process.uptime()),
     time: new Date().toISOString(),
