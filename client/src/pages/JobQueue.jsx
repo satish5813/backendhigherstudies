@@ -29,6 +29,7 @@ export default function JobQueue() {
   const [selected, setSelected] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [ingesting, setIngesting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
   const load = useCallback(async () => {
@@ -55,16 +56,46 @@ export default function JobQueue() {
     setBusy(true);
     try {
       const res = kind === 'approve' ? await jobsApi.approve(ids) : await jobsApi.reject(ids);
-      toast.success(
-        kind === 'approve'
-          ? `${res.updated} opening${res.updated === 1 ? '' : 's'} published to students.`
-          : `${res.updated} rejected.`
-      );
+
+      if (kind === 'approve') {
+        const held = res.heldBack?.length ?? 0;
+        toast.success(
+          `${res.updated} opening${res.updated === 1 ? '' : 's'} published to students.`
+          + (res.verified ? ` ${res.verified} link${res.verified === 1 ? '' : 's'} checked first.` : '')
+        );
+        // Held-back rows are a decision the officer still has to make, so they
+        // get their own message rather than being buried in the success toast.
+        if (held) {
+          toast.error(
+            `${held} held back — the apply link is dead: `
+            + res.heldBack.map((d) => d.company).join(', ')
+          );
+        }
+      } else {
+        toast.success(`${res.updated} rejected.`);
+      }
       await load();
     } catch (e) {
       toast.error(e.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function verifyLinks() {
+    setVerifying(true);
+    try {
+      const r = await jobsApi.verifyLinks();
+      toast.success(
+        r.checked
+          ? `Checked ${r.checked}: ${r.live + r.redirect} working, ${r.dead} dead, ${r.blocked} could not be reached.`
+          : 'Every link here was checked recently.'
+      );
+      await load();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -101,10 +132,16 @@ export default function JobQueue() {
             Sourced openings wait here. Nothing reaches a student until you approve it.
           </p>
         </div>
-        <button onClick={runIngest} disabled={ingesting} className="btn-secondary h-10">
-          {ingesting ? <Spinner size={15} /> : <IconRefresh size={15} />}
-          {ingesting ? 'Searching…' : 'Search for jobs now'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={verifyLinks} disabled={verifying} className="btn-secondary h-10">
+            {verifying ? <Spinner size={15} /> : <IconCheck size={15} />}
+            {verifying ? 'Checking links…' : 'Verify apply links'}
+          </button>
+          <button onClick={runIngest} disabled={ingesting} className="btn-secondary h-10">
+            {ingesting ? <Spinner size={15} /> : <IconRefresh size={15} />}
+            {ingesting ? 'Searching…' : 'Search for jobs now'}
+          </button>
+        </div>
       </div>
 
       <SourcePanel sources={sources} />
@@ -207,8 +244,12 @@ function QueueRow({ job, checked, onToggle, open, onExpand }) {
 
   return (
     <div
-      className={`rounded-xl border bg-white transition ${
-        checked ? 'border-brand-400 ring-1 ring-brand-500/20' : 'border-ink-200 hover:border-ink-300'
+      className={`rounded-xl border transition ${
+        checked
+          ? 'border-brand-400 bg-white ring-1 ring-brand-500/20'
+          : job.link?.status === 'dead'
+            ? 'border-rose-200 bg-rose-50/40'
+            : 'border-ink-200 bg-white hover:border-ink-300'
       }`}
     >
       <div className="flex items-start gap-3 p-3">
@@ -257,20 +298,46 @@ function QueueRow({ job, checked, onToggle, open, onExpand }) {
             </button>
             {job.applyUrl && (
               <a
-                href={job.applyUrl}
+                href={job.link?.finalUrl || job.applyUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1 font-semibold text-ink-500 hover:text-ink-800"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 font-bold text-brand-700 hover:underline"
               >
-                <IconExternal size={12} /> Open the original listing
+                <IconExternal size={12} /> Open the apply page
               </a>
             )}
+            <LinkStatus link={job.link} />
             {job.reviewNote && <span className="text-ink-400">Note: {job.reviewNote}</span>}
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+/**
+ * What the last link check found.
+ *
+ * "blocked" is worth showing separately from "dead": a careers site that rate-
+ * limits us or refuses a non-browser request tells us nothing about whether the
+ * posting exists, and marking it dead would have an officer rejecting real
+ * openings. It reads as "look yourself", which is the honest instruction.
+ */
+function LinkStatus({ link }) {
+  if (!link || link.status === 'unchecked') {
+    return <span className="text-[11.5px] text-ink-400">link not checked</span>;
+  }
+
+  const map = {
+    live: ['text-emerald-700', 'apply link works'],
+    redirect: ['text-emerald-700', 'works (redirects)'],
+    dead: ['text-rose-700', `dead link${link.code ? ' · ' + link.code : ''}`],
+    blocked: ['text-amber-700', `could not check${link.code ? ' · ' + link.code : ''} — open it yourself`],
+  };
+  const [tone, label] = map[link.status] ?? ['text-ink-400', link.status];
+
+  return <span className={`text-[11.5px] font-semibold ${tone}`}>{label}</span>;
 }
 
 /* ---------------------------------------------------------------- sources */

@@ -79,6 +79,19 @@ async function main() {
     { table: 'jobs', column: 'reviewed_at', definition: `DATETIME DEFAULT NULL`, after: 'reviewed_by' },
     { table: 'jobs', column: 'review_note', definition: `VARCHAR(500) DEFAULT NULL`, after: 'reviewed_at' },
     { table: 'jobs', column: 'ingested_at', definition: `DATETIME DEFAULT NULL`, after: 'review_note' },
+    // Whether the apply link actually resolves. A sourced posting can be taken
+    // down between the sweep and the morning review, and an officer clearing a
+    // 200-row queue cannot click every link — so the queue reports it.
+    {
+      table: 'jobs',
+      column: 'link_status',
+      definition: `ENUM('unchecked','live','redirect','dead','blocked') NOT NULL DEFAULT 'unchecked'
+        COMMENT 'result of the last apply-link check'`,
+      after: 'apply_url',
+    },
+    { table: 'jobs', column: 'link_code', definition: `SMALLINT UNSIGNED DEFAULT NULL COMMENT 'HTTP status from the last check'`, after: 'link_status' },
+    { table: 'jobs', column: 'link_checked_at', definition: `DATETIME DEFAULT NULL`, after: 'link_code' },
+    { table: 'jobs', column: 'link_final_url', definition: `VARCHAR(500) DEFAULT NULL COMMENT 'where the link ended up after redirects'`, after: 'link_checked_at' },
     // Set when the student has seen the placement cell's record of them and
     // said "yes, that is me". Until then the onboarding flow leads with it.
     {

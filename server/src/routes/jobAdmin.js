@@ -14,6 +14,7 @@ import { validate, writeLimiter, wrap, HttpError } from '../middleware/common.js
 import { hydrateJob } from '../services/jobAlerts.js';
 import { expireStaleJobs, ingestAll } from '../services/jobIngest.js';
 import { sourceStatus } from '../services/jobSources.js';
+import { checkPendingLinks, checkUrl } from '../services/linkCheck.js';
 import { env } from '../config/env.js';
 import { ACTIONS, logActivity } from '../utils/activity.js';
 
@@ -54,7 +55,18 @@ router.get('/queue', wrap(async (req, res) => {
       ...hydrateJob(r),
       status: r.status,
       ctcSource: r.ctc_source,
+      // hydrateJob keeps the raw snake_case column; the queue reads camelCase
+      // like every other field here, so expose it under both.
+      applyUrl: r.apply_url,
       sourceUrl: r.source_url,
+      link: {
+        status: r.link_status,
+        code: r.link_code,
+        checkedAt: r.link_checked_at,
+        // Where it actually ends up, so an officer can see a posting that has
+        // been moved rather than removed.
+        finalUrl: r.link_final_url,
+      },
       ingestedAt: r.ingested_at,
       reviewNote: r.review_note,
       // The description is long; the queue only needs enough to judge it.
@@ -85,6 +97,8 @@ router.get('/sources', wrap(async (_req, res) => {
 const decisionSchema = z.object({
   ids: z.array(z.coerce.number().int().positive()).min(1).max(200),
   note: z.string().trim().max(500).nullish(),
+  // Publish even where the link check says the posting is gone.
+  force: z.coerce.boolean().optional(),
 });
 
 /**
@@ -96,13 +110,75 @@ const decisionSchema = z.object({
 router.post('/approve', writeLimiter, validate(decisionSchema), wrap(async (req, res) => {
   const { ids, note } = req.body;
   const marks = ids.map(() => '?').join(',');
+
+  // Anything selected but never link-checked is verified now, so "approve all"
+  // cannot quietly publish a posting that was taken down overnight.
+  const unchecked = await query(
+    `SELECT id, apply_url FROM jobs
+      WHERE id IN (${marks}) AND link_status = 'unchecked' AND apply_url IS NOT NULL`,
+    ids
+  );
+  for (const row of unchecked) {
+    const r = await checkUrl(row.apply_url);
+    await execute(
+      `UPDATE jobs SET link_status = ?, link_code = ?, link_checked_at = NOW(), link_final_url = ? WHERE id = ?`,
+      [r.status, r.code, r.finalUrl?.slice(0, 500) ?? null, row.id]
+    );
+  }
+
+  // Dead links are held back rather than published. `force` lets an officer who
+  // has looked at one themselves override it — the check is a safety net, not
+  // an authority.
+  const dead = await query(
+    `SELECT id, company, title FROM jobs WHERE id IN (${marks}) AND link_status = 'dead'`, ids
+  );
+  const skip = req.body.force ? [] : dead.map((d) => d.id);
+  const toApprove = ids.filter((id) => !skip.includes(id));
+
+  if (!toApprove.length) {
+    return res.status(409).json({
+      error: 'dead_links',
+      message: `Every selected opening has a dead apply link. Reject them, or approve again with force to publish anyway.`,
+      dead,
+    });
+  }
+
+  const approveMarks = toApprove.map(() => '?').join(',');
   const result = await execute(
     `UPDATE jobs SET status = 'approved', active = 1, reviewed_by = ?, reviewed_at = NOW(), review_note = ?
-      WHERE id IN (${marks}) AND status <> 'approved'`,
-    [req.user.id, note ?? null, ...ids]
+      WHERE id IN (${approveMarks}) AND status <> 'approved'`,
+    [req.user.id, note ?? null, ...toApprove]
   );
-  await logActivity(req, { userId: req.user.id, action: ACTIONS.JOB_APPROVED, detail: { count: result.affectedRows, ids: ids.slice(0, 20) } });
-  res.json({ ok: true, updated: result.affectedRows });
+
+  await logActivity(req, {
+    userId: req.user.id,
+    action: ACTIONS.JOB_APPROVED,
+    detail: { count: result.affectedRows, heldBack: skip.length, ids: toApprove.slice(0, 20) },
+  });
+
+  res.json({
+    ok: true,
+    updated: result.affectedRows,
+    // Named, not just counted, so the officer can go and look at them.
+    heldBack: dead.filter((d) => skip.includes(d.id)),
+    verified: unchecked.length,
+  });
+}));
+
+/**
+ * POST /api/jobs/admin/verify-links — check the apply links in a queue.
+ *
+ * Runs on demand so an officer can clear the "unchecked" state before reviewing
+ * rather than discovering dead links one at a time.
+ */
+router.post('/verify-links', writeLimiter, wrap(async (req, res) => {
+  const result = await checkPendingLinks({
+    status: ['pending', 'approved'].includes(req.query.status) ? req.query.status : 'pending',
+    limit: Number(req.query.limit) || 200,
+    recheck: req.query.recheck === '1',
+  });
+  await logActivity(req, { userId: req.user.id, action: ACTIONS.JOB_LINKS_CHECKED, detail: result });
+  res.json(result);
 }));
 
 /** POST /api/jobs/admin/reject — keep the row so the sweep never re-queues it. */

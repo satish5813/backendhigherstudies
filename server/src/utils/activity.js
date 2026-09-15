@@ -33,6 +33,7 @@ export const ACTIONS = {
   JOB_APPROVED: 'job.approved',
   JOB_REJECTED: 'job.rejected',
   JOB_INGESTED: 'job.ingested',
+  JOB_LINKS_CHECKED: 'job.links_checked',
   RECORD_CONFIRMED: 'profile.record_confirmed',
   ACCOUNT_DELETED: 'admin.account_deleted',
 };

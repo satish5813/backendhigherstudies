@@ -218,6 +218,7 @@ export const jobsApi = {
   approve: (ids, note) => api.post('/jobs/admin/approve', { ids, note }),
   reject: (ids, note) => api.post('/jobs/admin/reject', { ids, note }),
   editJob: (id, payload) => api.patch(`/jobs/admin/${id}`, payload),
+  verifyLinks: (params = {}) => api.post(`/jobs/admin/verify-links?${new URLSearchParams(params)}`),
   ingest: (source) => api.post(`/jobs/admin/ingest${source ? `?source=${source}` : ''}`),
   applicationStats: (limit) => api.get(`/jobs/admin/applications${limit ? `?limit=${limit}` : ''}`),
 };
