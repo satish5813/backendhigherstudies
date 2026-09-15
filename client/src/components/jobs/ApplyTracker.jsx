@@ -3,6 +3,7 @@ import { jobsApi } from '../../lib/api';
 import { Badge, Spinner } from '../ui';
 import { useToast } from '../ui/Toast';
 import { IconAlert, IconCheck, IconExternal } from '../ui/Icons';
+import AuthedImage from '../ui/AuthedImage';
 
 export const STATUS_LABEL = {
   applied: 'Applied',
@@ -34,6 +35,7 @@ export default function ApplyTracker({ job, application, onChange, compact }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const fileRef = useRef(null);
 
   async function markApplied() {
@@ -121,14 +123,16 @@ export default function ApplyTracker({ job, application, onChange, compact }) {
         </select>
 
         {application.hasProof ? (
-          <a
-            href={application.proofUrl}
-            target="_blank"
-            rel="noreferrer noopener"
+          // Not a plain <a href>: the endpoint is bearer-authenticated, and a
+          // new tab carries no Authorization header, so the link would open a
+          // 401. Opening it inline instead.
+          <button
+            type="button"
+            onClick={() => setViewing(true)}
             className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline"
           >
             <IconCheck size={13} /> Screenshot attached
-          </a>
+          </button>
         ) : (
           <button
             onClick={() => fileRef.current?.click()}
@@ -165,6 +169,38 @@ export default function ApplyTracker({ job, application, onChange, compact }) {
         className="hidden"
         onChange={(e) => uploadProof(e.target.files?.[0])}
       />
+
+      {viewing && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-ink-900/70 p-4"
+          onClick={() => setViewing(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Your application screenshot"
+        >
+          <div
+            className="max-h-full w-full max-w-2xl overflow-auto rounded-2xl bg-white p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-bold text-ink-900">Your proof screenshot</p>
+                <p className="truncate text-[12.5px] text-ink-500">
+                  Only you and the placement cell can open this.
+                </p>
+              </div>
+              <button onClick={() => setViewing(false)} className="btn-secondary h-8 shrink-0 text-xs">
+                Close
+              </button>
+            </div>
+            <AuthedImage
+              src={application.proofUrl.replace(/^\/api/, '')}
+              alt="Your application confirmation"
+              className="mx-auto max-h-[70vh] w-auto max-w-full rounded-lg border border-ink-200 object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

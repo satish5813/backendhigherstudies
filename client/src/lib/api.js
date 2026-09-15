@@ -112,6 +112,43 @@ async function request(method, path, body, options = {}) {
   return payload;
 }
 
+/**
+ * Fetch a binary response and hand back an object URL.
+ *
+ * `<img src="/api/...">` cannot be used for anything behind auth: the browser
+ * sends cookies on an image request but never an Authorization header, and this
+ * API is bearer-only. So the bytes are fetched properly, wrapped in a blob URL,
+ * and that is what the <img> points at.
+ *
+ * The caller owns the returned URL and must URL.revokeObjectURL it when the
+ * element goes away, or the blob is pinned in memory for the life of the tab.
+ */
+export async function fetchBlobUrl(path, options = {}) {
+  const send = (token) =>
+    fetch(`/api${path}`, {
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: options.signal,
+    });
+
+  let res = await send(tokenStore.get());
+
+  // Same one-shot refresh the JSON path does, so an expired access token shows
+  // the image instead of a broken icon.
+  if (res.status === 401) {
+    const fresh = await refreshAccessToken();
+    if (fresh) res = await send(fresh);
+    else authLost();
+  }
+
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, payload);
+  }
+
+  return URL.createObjectURL(await res.blob());
+}
+
 export const api = {
   get: (path, options) => request('GET', path, undefined, options),
   post: (path, body, options) => request('POST', path, body ?? {}, options),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { jobsApi } from '../lib/api';
 import { Badge, EmptyState, PageLoader } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
+import AuthedImage from '../components/ui/AuthedImage';
 import { IconBriefcase, IconCheck, IconExternal } from '../components/ui/Icons';
 import { STATUS_LABEL, STATUS_TONE } from '../components/jobs/ApplyTracker';
 
@@ -160,38 +161,50 @@ function Stat({ label, value, sub, tone = 'slate' }) {
  * the point of storing them outside the static tree.
  */
 function ProofViewer({ row, onClose }) {
+  // The blob URL AuthedImage created. "Full size" opens that same object —
+  // pointing the link at the API path would make a second, unauthenticated
+  // request and fail exactly the way the <img> used to.
+  const [blobUrl, setBlobUrl] = useState(null);
+
+  // Escape closes, which is what anyone expects of a lightbox.
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-ink-900/70 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      aria-label={`Application proof from ${row.student.name}`}
     >
       <div
         className="max-h-full w-full max-w-3xl overflow-auto rounded-2xl bg-white p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <p className="font-black text-ink-900">{row.student.name}</p>
-            <p className="text-sm text-ink-500">{row.job.title} at {row.job.company}</p>
+          <div className="min-w-0">
+            <p className="truncate font-black text-ink-900">{row.student.name}</p>
+            <p className="truncate text-sm text-ink-500">{row.job.title} at {row.job.company}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <a
-              href={row.proofUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="btn-ghost h-8 text-xs"
-            >
-              <IconExternal size={13} /> Full size
-            </a>
+          <div className="flex shrink-0 items-center gap-2">
+            {blobUrl && (
+              <a href={blobUrl} target="_blank" rel="noreferrer noopener" className="btn-ghost h-8 text-xs">
+                <IconExternal size={13} /> Full size
+              </a>
+            )}
             <button onClick={onClose} className="btn-secondary h-8 text-xs">Close</button>
           </div>
         </div>
-        <img
-          src={row.proofUrl}
+
+        <AuthedImage
+          src={row.proofUrl.replace(/^\/api/, '')}
           alt={`Application confirmation from ${row.student.name}`}
-          className="w-full rounded-lg border border-ink-200"
+          className="mx-auto max-h-[70vh] w-auto max-w-full rounded-lg border border-ink-200 object-contain"
+          onUrl={setBlobUrl}
         />
       </div>
     </div>
