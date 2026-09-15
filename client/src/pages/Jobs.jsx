@@ -5,6 +5,8 @@ import { useToast } from '../components/ui/Toast';
 import { Badge, EmptyState, Modal, PageLoader, Spinner } from '../components/ui';
 import CreateResumeModal from '../components/resume/CreateResumeModal';
 import ApplyTracker from '../components/jobs/ApplyTracker';
+import CompanyMark from '../components/ui/CompanyMark';
+import TechIcon from '../components/ui/TechIcon';
 import { IconBriefcase, IconDoc, IconExternal, IconMapPin, IconSearch, IconTarget } from '../components/ui/Icons';
 
 export default function Jobs() {
@@ -165,9 +167,12 @@ function JobCard({ job, applied, onOpen }) {
       className="card group p-5 text-left transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-base font-bold tracking-tight text-ink-900 group-hover:text-brand-700">{job.title}</p>
-          <p className="mt-0.5 text-sm text-ink-600">{job.company}</p>
+        <div className="flex min-w-0 items-start gap-3">
+          <CompanyMark name={job.company} size={40} />
+          <div className="min-w-0">
+            <p className="text-base font-bold tracking-tight text-ink-900 group-hover:text-brand-700">{job.title}</p>
+            <p className="mt-0.5 text-sm text-ink-600">{job.company}</p>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {job.match != null && (
@@ -188,7 +193,9 @@ function JobCard({ job, applied, onOpen }) {
 
       {job.skills?.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {job.skills.slice(0, 6).map((s) => <Badge key={s} tone="slate">{s}</Badge>)}
+          {job.skills.slice(0, 6).map((s) => (
+            <Badge key={s} tone="slate"><TechIcon name={s} size={12} />{s}</Badge>
+          ))}
           {job.skills.length > 6 && <span className="self-center text-xs text-ink-400">+{job.skills.length - 6}</span>}
         </div>
       )}
