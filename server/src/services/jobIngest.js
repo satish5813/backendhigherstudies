@@ -285,7 +285,7 @@ function toMysqlDate(value) {
  * Raw posting → a row shaped like the `jobs` table, or a rejection reason.
  * Pure and exported so the test suite can exercise the rules without a network.
  */
-export function normalise(raw, { minCtc = env.jobs.minCtc } = {}) {
+export function normalise(raw, { minCtc = env.jobs.minCtc, maxCtc = env.jobs.maxCtc } = {}) {
   if (!raw?.title || !raw?.company) return { skip: 'incomplete' };
   if (!raw.applyUrl) return { skip: 'no_apply_url' };
   if (!isIndia(raw.location)) return { skip: 'not_india' };
@@ -314,6 +314,12 @@ export function normalise(raw, { minCtc = env.jobs.minCtc } = {}) {
   // so does an estimated 18-35 band. The officer sees the range and decides.
   const ceiling = band.max ?? band.min;
   if (ceiling < minCtc) return { skip: 'below_floor' };
+
+  // And a ceiling, because a fresher board has an upper bound too. A posting
+  // estimated above it is almost always a senior role whose title slipped past
+  // the seniority gate — no genuine campus offer is worth 80 LPA, so the number
+  // itself is the tell.
+  if (band.min > maxCtc) return { skip: 'above_ceiling' };
 
   return {
     row: {

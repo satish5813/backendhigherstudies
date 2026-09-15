@@ -112,6 +112,10 @@ export const env = {
     // clears it on the TOP of its range, so "18-30 LPA" survives a floor of 20
     // and the officer sees the range before approving.
     minCtc: Number(process.env.JOB_MIN_CTC) || 20,
+    // Upper bound, in lakhs. A fresher board has a ceiling as well as a floor:
+    // an estimate above this is almost always a senior role whose title got
+    // past the seniority gate, and the number is the tell.
+    maxCtc: Number(process.env.JOB_MAX_CTC) || 80,
     // Approved listings go quiet after this many days rather than sitting on
     // the board forever.
     expireDays: int(process.env.JOB_EXPIRE_DAYS, 45),
