@@ -1,0 +1,67 @@
+# For Coolify's "Docker Compose" deployment type, and for running the whole
+# stack locally with `docker compose up`.
+#
+# Coolify injects the environment from its own UI, so nothing secret belongs in
+# this file — every value below is either a default or a ${REFERENCE}.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    # Coolify's Traefik proxy terminates TLS and routes to this port.
+    expose:
+      - "4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      APP_NAME: KL Placement Readiness
+      APP_URL: ${APP_URL}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-careerforge}
+      DB_USER: ${DB_USER:-careerforge}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      # MUST stay false in production: true returns the OTP in the API
+      # response, which lets anyone sign in as any student.
+      MAIL_DEV_ECHO: "false"
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      # Student photos and application-proof screenshots. Without these a
+      # redeploy destroys evidence a student uploaded.
+      - uploads:/app/server/uploads
+      - private:/app/server/private
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-careerforge}
+      MYSQL_USER: ${DB_USER:-careerforge}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    # The driver writes UTC and MySQL must agree, or every NOW() comparison
+    # skews by the IST offset — a 10-minute OTP reads as 5.5 hours.
+    command: --default-time-zone=+00:00
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  uploads:
+  private:
+  dbdata:
