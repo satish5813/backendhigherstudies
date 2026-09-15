@@ -12,7 +12,19 @@ export function AuthProvider({ children }) {
     let cancelled = false;
     (async () => {
       if (!tokenStore.get()) {
-        // there may still be a refresh cookie from a previous visit
+        // Only attempt a refresh when the server has told us a session exists.
+        //
+        // The refresh token is httpOnly and unreadable here, so this used to
+        // fire on every cold load — and a first-time visitor got a red
+        // `401 /api/auth/refresh` in their console before touching anything.
+        // `cf_session` is a readable, secret-free companion set alongside the
+        // real cookie, purely so we can skip a request we know will fail.
+        const maybeSignedIn = document.cookie.split('; ').some((c) => c.startsWith('cf_session='));
+        if (!maybeSignedIn) {
+          if (!cancelled) setReady(true);
+          return;
+        }
+
         try {
           const res = await fetch('/api/auth/refresh', {
             method: 'POST',

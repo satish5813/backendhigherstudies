@@ -67,3 +67,28 @@ export function refreshCookieOptions(expiresAt) {
     expires: expiresAt,
   };
 }
+
+/**
+ * A readable companion to the refresh cookie.
+ *
+ * The refresh token itself is httpOnly, which is right — JavaScript must not be
+ * able to read it. But that leaves the client unable to tell whether a session
+ * might exist, so it attempted a refresh on every cold load and a first-time
+ * visitor got a red `401 /api/auth/refresh` in their console before they had
+ * done anything. Harmless, and it looks exactly like a bug to anyone who opens
+ * devtools.
+ *
+ * This carries no secret — just the fact that a session was issued — so it is
+ * safe to expose and lets the client skip a request it knows will fail.
+ */
+export const SESSION_HINT_COOKIE = 'cf_session';
+
+export function sessionHintOptions(expiresAt) {
+  return {
+    httpOnly: false,
+    secure: env.isProd,
+    sameSite: env.isProd ? 'strict' : 'lax',
+    path: '/',
+    expires: expiresAt,
+  };
+}

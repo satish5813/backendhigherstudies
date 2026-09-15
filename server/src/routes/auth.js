@@ -13,6 +13,8 @@ import { autoClaimByEmail } from '../services/cohorts.js';
 import { ACTIONS, clientIp, logActivity, userAgent } from '../utils/activity.js';
 import {
   REFRESH_COOKIE,
+  SESSION_HINT_COOKIE,
+  sessionHintOptions,
   consumeRefreshToken,
   issueRefreshToken,
   refreshCookieOptions,
@@ -222,6 +224,7 @@ router.post(
       userAgent: userAgent(req),
     });
     res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(expiresAt));
+    res.cookie(SESSION_HINT_COOKIE, "1", sessionHintOptions(expiresAt));
 
     await logActivity(req, {
       userId: user.id,
@@ -251,6 +254,7 @@ router.post(
     const session = await consumeRefreshToken(token);
     if (!session) {
       res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+    res.clearCookie(SESSION_HINT_COOKIE, { path: '/' });
       return res.status(401).json({ error: 'invalid_refresh', message: 'Your session expired. Please sign in again.' });
     }
 
@@ -264,6 +268,7 @@ router.post(
       userAgent: userAgent(req),
     });
     res.cookie(REFRESH_COOKIE, nextToken, refreshCookieOptions(expiresAt));
+    res.cookie(SESSION_HINT_COOKIE, "1", sessionHintOptions(expiresAt));
 
     res.json({ accessToken: signAccessToken(user), refreshToken: nextToken, user: publicUser(user) });
   })
@@ -275,6 +280,7 @@ router.post(
     const token = req.cookies?.[REFRESH_COOKIE] || req.body?.refreshToken;
     await revokeRefreshToken(token);
     res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+    res.clearCookie(SESSION_HINT_COOKIE, { path: '/' });
     if (req.body?.userId) await logActivity(req, { userId: req.body.userId, action: ACTIONS.LOGOUT });
     res.json({ ok: true });
   })
