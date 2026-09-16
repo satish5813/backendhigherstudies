@@ -225,6 +225,23 @@ async function main() {
     r = await call('GET', `/api/cohorts/resumes/999999999`, undefined, adminToken);
     check('an unknown resume → 404', r.status === 404, `${r.status}`);
 
+    /* --------------------------------------------------------- B3. export */
+    console.log('\nPortal export (for the placement cell\'s spreadsheets)');
+    r = await call('GET', '/api/cohorts/export?campus=all', undefined, adminToken);
+    check('an admin can export the whole roster', r.status === 200 && Array.isArray(r.data?.items) && r.data.items.length >= 1, `${r.status}`);
+    const ex = r.data?.items?.find((i) => String(i.regNo) === String(seed.reg_no));
+    check('...the roster student appears with their account', ex?.account?.id === student.body.user.id, JSON.stringify(ex?.account));
+    check('...their best resume and ATS score', ex?.resume?.atsScore === 77 && ex?.resume?.count >= 1, JSON.stringify(ex?.resume));
+    check('...and a profile block with skills and links arrays', Array.isArray(ex?.profile?.skills) && Array.isArray(ex?.profile?.links), JSON.stringify(ex?.profile)?.slice(0, 120));
+    const pendingRow = r.data.items.find((i) => !i.account);
+    check('a student who has not signed in has no account, profile or resume', pendingRow && pendingRow.profile === null && pendingRow.resume === null, JSON.stringify(pendingRow)?.slice(0, 120));
+    r = await call('GET', '/api/cohorts/export?campus=all', undefined, TOKEN);
+    check('the service token can export too', r.status === 200 && r.data?.items?.length >= 1, `${r.status}`);
+    r = await call('GET', '/api/cohorts/export?campus=all', undefined, studentToken);
+    check('a student cannot', r.status === 403, `${r.status}`);
+    r = await call('GET', '/api/cohorts/export?campus=all');
+    check('nor anyone anonymous', r.status === 401, `${r.status}`);
+
     /* ---------------------------------------------------------- C. import */
     console.log('\nRoster import');
     const tiny = { cohorts: [{ code: TEST_COHORT, name: 'E2E roster', records: [

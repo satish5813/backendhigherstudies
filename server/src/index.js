@@ -27,6 +27,7 @@ import meRoutes from './routes/me.js';
 import publicRoutes from './routes/publicProfile.js';
 import cohortRoutes from './routes/cohorts.js';
 import cohortImportRoutes from './routes/cohortImport.js';
+import cohortExportRoutes from './routes/cohortExport.js';
 import aiRoutes from './routes/ai.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -117,6 +118,7 @@ app.use('/api/me', apiLimiter, meRoutes);
 // The roster import has its own guard (an admin session, or the bootstrap
 // token) and its own body limit, so it sits in front of the session-only router.
 app.use('/api/cohorts/import', apiLimiter, cohortImportRoutes);
+app.use('/api/cohorts/export', apiLimiter, cohortExportRoutes);
 app.use('/api/cohorts', apiLimiter, cohortRoutes);
 app.use('/api/ai', apiLimiter, aiRoutes);
 app.use('/api/u', publicRoutes);

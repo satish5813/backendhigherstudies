@@ -28,7 +28,7 @@ function tokenMatches(req) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-function tokenOrAdmin(req, res, next) {
+export function tokenOrAdmin(req, res, next) {
   if (tokenMatches(req)) {
     req.importedBy = 'import-token';
     return next();
